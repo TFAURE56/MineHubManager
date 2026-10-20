@@ -8,9 +8,9 @@
     <title>MineHub Manager</title>
     <script>try { document.documentElement.dataset.theme = localStorage.getItem("minehub:theme") === "dark" ? "dark" : "light"; } catch { document.documentElement.dataset.theme = "light"; }</script>
     <link rel="preconnect" href="https://unpkg.com" crossorigin />
-    <link rel="stylesheet" href="/styles.css?v=15" />
+    <link rel="stylesheet" href="/styles.css?v=16" />
     <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
-    <script type="module" src="/app.js?v=18"></script>
+    <script type="module" src="/app.js?v=19"></script>
   </head>
   <body>
     <div class="app-shell">
@@ -36,8 +36,8 @@
           <button class="nav-item" data-view="access">
             <i data-lucide="network"></i><span>Accès amis</span>
           </button>
-          <button class="nav-item" data-view="generalSettings">
-            <i data-lucide="folder-cog"></i><span>Paramètres généraux</span>
+          <button class="nav-item" data-view="minehubSettings">
+            <i data-lucide="settings-2"></i><span>Paramètres MineHub</span>
           </button>
           <button class="nav-item" data-view="activity">
             <i data-lucide="activity"></i><span>Activité</span>

@@ -1,9 +1,9 @@
 import http from "node:http";
-import { createReadStream, existsSync } from "node:fs";
+import { constants as fsConstants, createReadStream, createWriteStream, existsSync } from "node:fs";
 import { access, appendFile, cp, mkdir, readFile, readdir, rename, rm, stat, statfs, unlink, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, join, normalize, resolve, sep } from "node:path";
 import { pipeline } from "node:stream/promises";
-import { Readable } from "node:stream";
+import { Readable, Transform } from "node:stream";
 import { execFile, spawn } from "node:child_process";
 import { createConnection } from "node:net";
 import crypto from "node:crypto";
@@ -24,6 +24,7 @@ import { parseAdvancementMessage, stripSystemChat } from "./console-events.mjs";
 import { normalizePublicAddress } from "./public-address.mjs";
 import { resolveInstanceDirectory } from "./instance-path.mjs";
 import { inspectNodeVersion, parseJavaVersion } from "./runtime-checks.mjs";
+import { compareVersions, normalizeGitHubRepository } from "./github-updates.mjs";
 
 const HOST = process.env.HOST || "127.0.0.1";
 const PORT = Number(process.env.PORT || 4173);
@@ -38,8 +39,9 @@ const METRICS_DIR = join(DATA_DIR, "metrics");
 const LOGS_DIR = join(DATA_DIR, "logs");
 const MAX_CONSOLE_LOG_BYTES = 10 * 1024 * 1024;
 const API_TOKEN = process.env.MCM_TOKEN || "";
-const USER_AGENT = "MineHubManager/0.10.0 (local Minecraft server manager)";
 const PACKAGE = JSON.parse(await readFile(join(ROOT, "package.json"), "utf8"));
+const USER_AGENT = `MineHubManager/${PACKAGE.version} (local Minecraft server manager)`;
+const APP_UPDATE_REPOSITORY = normalizeGitHubRepository(PACKAGE.repository?.url || process.env.MINEHUB_GITHUB_REPOSITORY || "");
 const MIN_NODE_MAJOR = Number(PACKAGE.engines?.node?.match(/\d+/)?.[0] || 20);
 
 const runtimes = new Map();
@@ -51,6 +53,25 @@ const playerStatsCache = new Map();
 const scheduledRuns = new Set();
 const MAX_METRIC_SAMPLES = 1440;
 let cpuSnapshot = null;
+let mineHubUpdateRunning = false;
+
+function getMineHubUpdaterConfig() {
+  if (process.platform !== "win32" && existsSync("/run/systemd/system")) {
+    const installRoot = resolve(process.env.MINEHUB_INSTALL_ROOT || "/opt/minehub");
+    const updateDirectory = resolve(process.env.MINEHUB_UPDATE_DIR || join(DATA_DIR, ".minehub-update"));
+    const expectedUpdateDirectory = resolve(join(DATA_DIR, ".minehub-update"));
+    const supported = installRoot === ROOT && updateDirectory === expectedUpdateDirectory;
+    return {
+      mode: "systemd",
+      updateDirectory,
+      systemdUnit: process.env.MINEHUB_SYSTEMD_SERVICE || "minehub.service",
+      updaterService: process.env.MINEHUB_UPDATER_SERVICE || "minehub-updater.service",
+      supported,
+      message: supported ? null : "Configurez MINEHUB_INSTALL_ROOT et MINEHUB_UPDATE_DIR pour utiliser l’unité MineHub de mise à jour.",
+    };
+  }
+  return { mode: "direct", updateDirectory: null, supported: true, message: null };
+}
 
 async function inspectJavaRuntime() {
   const configured = process.env.JAVA_PATH || (process.env.JAVA_HOME ? join(process.env.JAVA_HOME, "bin", process.platform === "win32" ? "java.exe" : "java") : "java");
@@ -1211,6 +1232,118 @@ async function checkServerUpdate(server) {
   };
 }
 
+async function checkMineHubUpdate() {
+  const release = await fetchJson(`https://api.github.com/repos/${APP_UPDATE_REPOSITORY}/releases/latest`, {
+    headers: { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+  });
+  const latestVersion = String(release.tag_name || "").replace(/^v/, "");
+  const updateAvailable = compareVersions(latestVersion, PACKAGE.version) > 0;
+  return {
+    repository: APP_UPDATE_REPOSITORY,
+    current: PACKAGE.version,
+    latest: latestVersion,
+    tag: release.tag_name,
+    updateAvailable,
+    releaseUrl: release.html_url,
+    publishedAt: release.published_at || null,
+  };
+}
+
+async function prepareMineHubUpdate() {
+  if (mineHubUpdateRunning) throw new Error("Une mise à jour de MineHub est déjà en cours.");
+  mineHubUpdateRunning = true;
+  const updaterConfig = getMineHubUpdaterConfig();
+  const workDir = updaterConfig.mode === "systemd"
+    ? updaterConfig.updateDirectory
+    : join(DATA_DIR, ".minehub-update", `${Date.now()}-${crypto.randomUUID()}`);
+  try {
+    if (!updaterConfig.supported) throw new Error(updaterConfig.message);
+    if (updaterConfig.mode === "direct") {
+      try {
+        await access(ROOT, fsConstants.W_OK);
+      } catch {
+        throw new Error("MineHub n’a pas le droit d’écrire dans son dossier d’installation. Déplace le dossier ou accorde les droits de modification à l’utilisateur de l’agent.");
+      }
+    }
+    const savedState = await loadState();
+    for (const item of savedState.servers) {
+      if (runtimes.get(item.id)?.process || await isTcpPortInUse(item.settings.port)) {
+        throw new Error(`Arrêtez l’instance « ${item.name} » avant de redémarrer MineHub pour sa mise à jour.`);
+      }
+    }
+
+    const update = await checkMineHubUpdate();
+    if (!update.updateAvailable) throw new Error("MineHub est déjà à jour.");
+    if (existsSync(join(workDir, "manifest.json"))) throw new Error("Une mise à jour précédente est encore en attente.");
+    await rm(workDir, { recursive: true, force: true });
+    await mkdir(workDir, { recursive: true });
+
+    const archivePath = join(workDir, "minehub-release.tar.gz");
+    const archiveUrl = `https://api.github.com/repos/${APP_UPDATE_REPOSITORY}/tarball/${encodeURIComponent(update.tag)}`;
+    const response = await fetch(archiveUrl, {
+      headers: { "User-Agent": USER_AGENT, Accept: "application/vnd.github+json" },
+      signal: AbortSignal.timeout(120_000),
+    });
+    if (!response.ok || !response.body) throw new Error(`Téléchargement de MineHub impossible (${response.status}).`);
+    const declaredSize = Number(response.headers.get("content-length") || 0);
+    if (declaredSize > 200 * 1024 * 1024) throw new Error("L’archive de mise à jour dépasse la taille autorisée.");
+    let archiveSize = 0;
+    const sizeLimit = new Transform({
+      transform(chunk, encoding, callback) {
+        archiveSize += chunk.length;
+        callback(archiveSize > 200 * 1024 * 1024 ? new Error("L’archive de mise à jour dépasse la taille autorisée.") : null, chunk);
+      },
+    });
+    await pipeline(Readable.fromWeb(response.body), sizeLimit, createWriteStream(archivePath, { flags: "wx" }));
+
+    const manifestPath = join(workDir, "manifest.json");
+    const restartEnvironmentKeys = [
+      "APPDATA", "HOST", "JAVA_HOME", "JAVA_PATH", "LOCALAPPDATA", "MCM_TOKEN",
+      "MINECRAFT_BACKUP_ROOT", "MINECRAFT_ROOT", "MINEHUB_GITHUB_REPOSITORY", "MINEHUB_INSTALL_ROOT",
+      "MINEHUB_SYSTEMD_SERVICE", "MINEHUB_UPDATE_DIR", "MINEHUB_UPDATER_SERVICE", "PATH",
+      "PORT", "SystemRoot", "TEMP", "TMP", "USERPROFILE", "WINDIR",
+    ];
+    const restartEnvironment = Object.fromEntries(restartEnvironmentKeys
+      .filter((key) => process.env[key] !== undefined)
+      .map((key) => [key, process.env[key]]));
+    await writeFile(manifestPath, JSON.stringify({
+      root: ROOT,
+      archive: archivePath,
+      version: update.latest,
+      previousVersion: PACKAGE.version,
+      parentPid: process.pid,
+      node: process.execPath,
+      env: restartEnvironment,
+      ...(updaterConfig.mode === "systemd" ? { systemdUnit: updaterConfig.systemdUnit } : {}),
+    }), { flag: "wx" });
+
+    if (updaterConfig.mode === "systemd") {
+      const command = process.getuid?.() === 0 ? "systemctl" : "sudo";
+      const args = command === "sudo"
+        ? ["-n", "systemctl", "start", "--no-block", updaterConfig.updaterService]
+        : ["start", "--no-block", updaterConfig.updaterService];
+      await execFileAsync(command, args, { timeout: 15_000, windowsHide: true });
+    } else {
+      const updater = spawn(process.execPath, [join(ROOT, "self-updater.mjs"), manifestPath], {
+        cwd: ROOT,
+        detached: true,
+        stdio: "ignore",
+        windowsHide: true,
+      });
+      await new Promise((resolveSpawn, rejectSpawn) => {
+        updater.once("spawn", resolveSpawn);
+        updater.once("error", rejectSpawn);
+      });
+      updater.unref();
+    }
+    return { accepted: true, current: PACKAGE.version, target: update.latest };
+  } catch (error) {
+    mineHubUpdateRunning = false;
+    await rm(workDir, { recursive: true, force: true }).catch(() => {});
+    throw error;
+  }
+}
+
 async function updateServer(server) {
   await assertNoExternalServer(server);
   if (runtimes.get(server.id)?.process) throw new Error("Arrêtez le serveur avant de le mettre à jour.");
@@ -1674,7 +1807,8 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, {
       ok: true,
       name: "MineHub Agent",
-      version: "0.10.0",
+      version: PACKAGE.version,
+      apiVersion: "0.10.0",
       host: HOST,
       node: process.version,
       root: DATA_DIR,
@@ -1689,6 +1823,48 @@ async function handleApi(req, res, url) {
       java: await inspectJavaRuntime(),
       checkedAt: new Date().toISOString(),
     });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/minehub/settings") {
+    const updaterConfig = getMineHubUpdaterConfig();
+    let appDirectoryWritable = updaterConfig.mode === "systemd";
+    if (updaterConfig.mode === "direct") {
+      try {
+        await access(ROOT, fsConstants.W_OK);
+        appDirectoryWritable = true;
+      } catch {}
+    }
+    return sendJson(res, 200, {
+      appDirectory: ROOT,
+      dataDirectory: DATA_DIR,
+      instanceDirectory: SERVERS_DIR,
+      backupDirectory: BACKUPS_DIR,
+      logDirectory: LOGS_DIR,
+      node: { ...inspectNodeVersion(process.version, MIN_NODE_MAJOR), executable: process.execPath },
+      java: await inspectJavaRuntime(),
+      updateSupported: updaterConfig.supported && appDirectoryWritable,
+      updateMessage: !updaterConfig.supported
+        ? updaterConfig.message
+        : appDirectoryWritable
+          ? null
+          : "MineHub n’a pas le droit d’écrire dans son dossier d’installation.",
+      checkedAt: new Date().toISOString(),
+    });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/minehub/update-check") {
+    return sendJson(res, 200, await checkMineHubUpdate());
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/minehub/update") {
+    const result = await prepareMineHubUpdate();
+    res.once("finish", () => {
+      setTimeout(() => {
+        server.close(() => process.exit(0));
+        setTimeout(() => process.exit(0), 2000).unref();
+      }, 250).unref();
+    });
+    return sendJson(res, 202, result);
   }
 
   if (req.method === "GET" && url.pathname === "/api/versions") {

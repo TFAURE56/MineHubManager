@@ -4,7 +4,7 @@ const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const state = {
   servers: [],
   selectedId: localStorage.getItem("minehub:selected") || null,
-  activeView: localStorage.getItem("minehub:view") || "overview",
+  activeView: localStorage.getItem("minehub:view") === "generalSettings" ? "minehubSettings" : localStorage.getItem("minehub:view") || "overview",
   connection: readConnection(),
   health: null,
   loading: true,
@@ -48,6 +48,11 @@ const state = {
   generalSettings: null,
   generalSettingsLoading: false,
   generalSettingsError: null,
+  mineHubSettings: null,
+  mineHubSettingsError: null,
+  mineHubUpdate: null,
+  mineHubUpdateChecking: false,
+  mineHubUpdateRunning: false,
 };
 
 const pageTitles = {
@@ -62,6 +67,7 @@ const pageTitles = {
   mods: "Mods & plugins",
   console: "Console",
   generalSettings: "Paramètres généraux",
+  minehubSettings: "Paramètres MineHub",
 };
 
 const statusLabels = {
@@ -254,6 +260,67 @@ async function loadGeneralSettings() {
     state.generalSettingsError = error.message;
   } finally {
     state.generalSettingsLoading = false;
+  }
+}
+
+async function loadMineHubSettings() {
+  state.mineHubSettingsError = null;
+  const [settingsResult, updateResult] = await Promise.allSettled([
+    api("/api/minehub/settings"),
+    api("/api/minehub/update-check"),
+  ]);
+  if (settingsResult.status === "fulfilled") state.mineHubSettings = settingsResult.value;
+  else {
+    state.mineHubSettings = null;
+    state.mineHubSettingsError = settingsResult.reason.message;
+  }
+  if (updateResult.status === "fulfilled") state.mineHubUpdate = updateResult.value;
+  else state.mineHubUpdate = { error: updateResult.reason.message };
+  await loadGeneralSettings();
+}
+
+async function refreshMineHubUpdate() {
+  state.mineHubUpdateChecking = true;
+  render();
+  try {
+    state.mineHubUpdate = await api("/api/minehub/update-check");
+  } catch (error) {
+    state.mineHubUpdate = { error: error.message };
+  } finally {
+    state.mineHubUpdateChecking = false;
+    render();
+  }
+}
+
+async function applyMineHubUpdate() {
+  if (state.mineHubUpdateRunning) return;
+  const target = state.mineHubUpdate?.latest;
+  if (!target || !window.confirm(`Mettre MineHub à jour vers ${target} ? L’application va redémarrer. Arrête d’abord toutes les instances Minecraft.`)) return;
+
+  state.mineHubUpdateRunning = true;
+  render();
+  try {
+    await api("/api/minehub/update", { method: "POST", body: "{}" });
+    const deadline = Date.now() + 90_000;
+    while (Date.now() < deadline) {
+      await new Promise((resolveWait) => setTimeout(resolveWait, 1800));
+      try {
+        const health = await api("/api/health");
+        if (health.version === target) {
+          state.health = health;
+          await loadMineHubSettings();
+          toast("MineHub mis à jour", `Version ${target} installée.`);
+          return;
+        }
+      } catch {}
+    }
+    state.mineHubUpdate = { ...state.mineHubUpdate, error: "MineHub ne répond pas après son redémarrage. Consulte les journaux de l’agent." };
+    toast("Redémarrage de MineHub en attente", "Rafraîchis la page dans quelques instants.", "error");
+  } catch (error) {
+    toast("Mise à jour impossible", error.message, "error");
+  } finally {
+    state.mineHubUpdateRunning = false;
+    render();
   }
 }
 
@@ -800,7 +867,7 @@ function renderPlayers(server) {
 
 function renderFriendAccess(server) {
   const address = server.publicAddress || "";
-  const [agentMajor = 0, agentMinor = 0] = String(state.health?.version || "0.0.0").split(".").map(Number);
+  const [agentMajor = 0, agentMinor = 0] = String(state.health?.apiVersion || state.health?.version || "0.0.0").split(".").map(Number);
   const accessApiReady = agentMajor > 0 || agentMinor >= 9;
   return `
     <section class="friend-access-page">
@@ -832,14 +899,15 @@ function renderFriendAccess(server) {
 function renderGeneralSettings() {
   const settings = state.generalSettings;
   const [agentMajor = 0, agentMinor = 0] = String(state.health?.version || "0.0.0").split(".").map(Number);
-  const apiReady = agentMajor > 0 || agentMinor >= 10;
+  const [apiMajor = agentMajor, apiMinor = agentMinor] = String(state.health?.apiVersion || state.health?.version || "0.0.0").split(".").map(Number);
+  const apiReady = apiMajor > 0 || apiMinor >= 10;
   const defaultPath = state.health?.root ? `${state.health.root}${state.health.root.includes("\\") ? "\\" : "/"}servers` : "";
   const currentPath = settings?.instanceDirectory || defaultPath;
   const placeholder = currentPath.includes("\\") ? "C:\\Minecraft\\instances" : "/srv/minecraft/instances";
 
   return `
     <section class="general-settings-page">
-      <div class="page-heading"><div><h2>Paramètres généraux</h2><p>Emplacement des fichiers d’instances Minecraft sur l’hôte MineHub.</p></div></div>
+      <div class="page-heading"><div><h2>Dossier des instances Minecraft</h2><p>Emplacement des fichiers des serveurs gérés par MineHub.</p></div></div>
       ${state.generalSettingsLoading ? `<div class="skeleton"><div class="spinner"></div></div>` : `
         <section class="panel instance-location-panel">
           <header class="panel-header"><div><h2>Dossier des instances</h2><p>Chaque nouveau serveur sera créé dans ce dossier.</p></div><i data-lucide="folder-cog"></i></header>
@@ -855,6 +923,70 @@ function renderGeneralSettings() {
         <div class="notice"><i data-lucide="folder-sync"></i><span>Le changement copie les instances existantes vers le nouveau dossier et conserve les fichiers d’origine comme copie de secours. Toutes les instances doivent être arrêtées et le dossier choisi doit être vide ou inexistant. Le chemin est celui de la machine qui exécute l’agent MineHub.</span></div>
         ${!apiReady || state.generalSettingsError ? `<div class="notice"><i data-lucide="rotate-cw"></i><span>L’agent MineHub doit être redémarré après l’arrêt des serveurs Minecraft pour activer ce réglage.</span></div>` : ""}
       `}
+    </section>
+  `;
+}
+
+function renderMineHubSettings() {
+  const settings = state.mineHubSettings;
+  const update = state.mineHubUpdate;
+  const node = settings?.node;
+  const java = settings?.java;
+  const activeServers = state.servers.filter((server) => server.status !== "offline").length;
+  const updateStatus = state.mineHubUpdateChecking
+    ? "Vérification en cours…"
+    : update?.error
+      ? "Vérification indisponible"
+      : update?.updateAvailable
+        ? "Mise à jour disponible"
+        : update
+          ? "MineHub est à jour"
+          : "État inconnu";
+
+  return `
+    <section class="minehub-settings-page">
+      <div class="page-heading"><div><h2>Paramètres MineHub</h2><p>Application, prérequis et emplacements de MineHub, séparés des réglages de chaque instance.</p></div></div>
+      <div class="minehub-settings-grid">
+        <section class="panel minehub-update-panel">
+          <header class="panel-header"><div><h2>Mise à jour de MineHub</h2><p>${escapeHtml(update?.error || (update?.publishedAt ? `Dernière version publiée le ${formatShortDate(update.publishedAt)}.` : "Vérifiez les nouvelles versions de l’application."))}</p></div><span class="pill ${update?.error ? "danger" : update?.updateAvailable ? "warning" : update ? "success" : ""}">${escapeHtml(updateStatus)}</span></header>
+          <div class="minehub-version-facts">
+            <div><span>Version installée</span><strong>${escapeHtml(update?.current || state.health?.version || "—")}</strong></div>
+            <div><span>Dernière version stable</span><strong>${escapeHtml(update?.latest || "—")}</strong></div>
+          </div>
+          <div class="update-actions">
+            <button class="button secondary" type="button" data-check-minehub-update ${state.mineHubUpdateChecking || state.mineHubUpdateRunning ? "disabled" : ""}><i data-lucide="refresh-cw"></i>Vérifier</button>
+            <button class="button primary" type="button" data-apply-minehub-update ${!update?.updateAvailable || !settings || settings.updateSupported === false || state.mineHubUpdateRunning || activeServers > 0 ? "disabled" : ""}><i data-lucide="download"></i>${state.mineHubUpdateRunning ? "Mise à jour et redémarrage…" : "Mettre à jour MineHub"}</button>
+            ${update?.releaseUrl ? `<a class="button secondary" href="${escapeHtml(update.releaseUrl)}" target="_blank" rel="noreferrer"><i data-lucide="arrow-up-right"></i>Notes de version</a>` : ""}
+          </div>
+          ${activeServers > 0 ? `<div class="notice"><i data-lucide="circle-pause"></i><span>Arrête les ${activeServers} instance(s) en cours avant de redémarrer MineHub.</span></div>` : ""}
+          ${settings?.updateSupported === false ? `<div class="notice"><i data-lucide="lock-keyhole"></i><span>${escapeHtml(settings.updateMessage || "La mise à jour automatique n’est pas configurée pour cette installation.")}</span></div>` : ""}
+          ${state.mineHubUpdateRunning ? `<div class="notice"><i data-lucide="loader-circle"></i><span>MineHub télécharge la mise à jour puis redémarre automatiquement. Cette page se reconnectera à la nouvelle version.</span></div>` : ""}
+        </section>
+
+        <section class="panel minehub-runtime-panel">
+          <header class="panel-header"><div><h2>Node.js et Java</h2><p>Versions détectées par l’agent MineHub sur cet hôte.</p></div><button class="icon-button" type="button" data-refresh-minehub-settings aria-label="Vérifier Node.js et Java" title="Actualiser"><i data-lucide="refresh-cw"></i></button></header>
+          ${state.mineHubSettingsError ? `<div class="prerequisite-error">${escapeHtml(state.mineHubSettingsError)}</div>` : `
+            <div class="minehub-runtime-list">
+              <div><span class="prerequisite-icon"><i data-lucide="box"></i></span><div><strong>Node.js</strong><small>${node ? `${escapeHtml(node.version)} · requis : ${node.minimumMajor}+` : "Vérification en cours…"}</small></div><span class="pill ${node?.compatible ? "success" : node ? "danger" : ""}">${node?.compatible ? "Compatible" : node ? "Mise à jour requise" : "—"}</span></div>
+              <div><span class="prerequisite-icon"><i data-lucide="coffee"></i></span><div><strong>Java</strong><small>${java?.installed ? `${escapeHtml(java.version)} · ${escapeHtml(java.executable)}` : java ? "Introuvable · configure JAVA_HOME ou JAVA_PATH" : "Vérification en cours…"}</small></div><span class="pill ${java?.installed ? "success" : java ? "danger" : ""}">${java?.installed ? "Détecté" : java ? "Absent" : "—"}</span></div>
+            </div>
+          `}
+        </section>
+      </div>
+
+      <section class="panel minehub-paths-panel">
+        <header class="panel-header"><div><h2>Dossiers de MineHub</h2><p>Emplacements de l’application et de ses données, sur l’hôte qui exécute l’agent.</p></div><i data-lucide="folder-cog"></i></header>
+        ${state.mineHubSettingsError ? `<div class="prerequisite-error">${escapeHtml(state.mineHubSettingsError)}</div>` : `
+          <div class="minehub-path-list">
+            <div><span>Application MineHub</span><code>${escapeHtml(settings?.appDirectory || "—")}</code></div>
+            <div><span>Données MineHub</span><code>${escapeHtml(settings?.dataDirectory || "—")}</code></div>
+            <div><span>Sauvegardes</span><code>${escapeHtml(settings?.backupDirectory || "—")}</code></div>
+            <div><span>Journaux</span><code>${escapeHtml(settings?.logDirectory || "—")}</code></div>
+          </div>
+        `}
+      </section>
+
+      ${renderGeneralSettings()}
     </section>
   `;
 }
@@ -1187,13 +1319,13 @@ function render() {
   renderSidebar();
   const server = selectedServer();
   $("#page-title").textContent = pageTitles[state.activeView] || pageTitles.overview;
-  $("#breadcrumb-server").textContent = server?.name || "Accueil";
+  $("#breadcrumb-server").textContent = state.activeView === "minehubSettings" ? "MineHub" : server?.name || "Accueil";
   $$(".nav-item").forEach((item) => item.classList.toggle("is-active", item.dataset.view === state.activeView));
 
   if (state.loading) {
     $("#page-content").innerHTML = `<div class="skeleton"><div class="spinner"></div></div>`;
-  } else if (state.activeView === "generalSettings") {
-    $("#page-content").innerHTML = renderGeneralSettings();
+  } else if (state.activeView === "minehubSettings" || state.activeView === "generalSettings") {
+    $("#page-content").innerHTML = renderMineHubSettings();
   } else if (!server) {
     $("#page-content").innerHTML = renderEmpty();
   } else if (state.activeView === "players") {
@@ -1254,7 +1386,7 @@ async function selectServer(serverId) {
     state.activeView === "monitoring" ? Promise.all([loadMetrics(), loadBackupSchedule(), loadPrerequisites()]) : Promise.resolve(),
     state.activeView === "settings" ? loadProperties() : Promise.resolve(),
     state.activeView === "mods" ? loadModUpdates() : Promise.resolve(),
-    state.activeView === "generalSettings" ? loadGeneralSettings() : Promise.resolve(),
+    state.activeView === "minehubSettings" ? loadMineHubSettings() : Promise.resolve(),
   ]);
   render();
   document.body.classList.remove("sidebar-open");
@@ -1271,7 +1403,7 @@ async function setView(view) {
   if (view === "monitoring") await Promise.all([loadMetrics(), loadBackupSchedule(), loadPrerequisites()]);
   if (view === "settings" && !state.serverProperties) await loadProperties();
   if (view === "mods") await loadModUpdates();
-  if (view === "generalSettings") await loadGeneralSettings();
+  if (view === "minehubSettings" || view === "generalSettings") await loadMineHubSettings();
   render();
   document.body.classList.remove("sidebar-open");
 }
@@ -2028,6 +2160,12 @@ function bindEvents() {
     if (applyUpdate) applyServerUpdate(applyUpdate);
     const rollbackUpdate = event.target.closest("[data-rollback-update]");
     if (rollbackUpdate) rollbackServerUpdate();
+    const checkMineHubUpdate = event.target.closest("[data-check-minehub-update]");
+    if (checkMineHubUpdate) refreshMineHubUpdate();
+    const applyMineHubUpdateButton = event.target.closest("[data-apply-minehub-update]");
+    if (applyMineHubUpdateButton) applyMineHubUpdate();
+    const refreshMineHubSettings = event.target.closest("[data-refresh-minehub-settings]");
+    if (refreshMineHubSettings) loadMineHubSettings().then(render);
     const eventFilter = event.target.closest("[data-event-filter]");
     if (eventFilter) {
       state.eventFilter = eventFilter.dataset.eventFilter;
@@ -2162,7 +2300,7 @@ async function init() {
     state.activeView === "updates" ? loadUpdateCheck() : Promise.resolve(),
     state.activeView === "monitoring" ? Promise.all([loadMetrics(), loadBackupSchedule(), loadPrerequisites()]) : Promise.resolve(),
     state.activeView === "settings" ? loadProperties() : Promise.resolve(),
-    state.activeView === "generalSettings" ? loadGeneralSettings() : Promise.resolve(),
+    state.activeView === "minehubSettings" ? loadMineHubSettings() : Promise.resolve(),
   ]);
   render();
   setInterval(poll, 5_000);

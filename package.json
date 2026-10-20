@@ -1,8 +1,12 @@
 {
   "name": "minehub-manager",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "private": true,
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TFAURE56/MineHubManager.git"
+  },
   "description": "Gestionnaire web local et distant pour serveurs Minecraft",
   "scripts": {
     "start": "node server.mjs",
