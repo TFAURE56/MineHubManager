@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f4f5f3" />
+    <meta name="description" content="MineHub Manager, gestion locale et distante de serveurs Minecraft." />
+    <title>MineHub Manager</title>
+    <script>try { document.documentElement.dataset.theme = localStorage.getItem("minehub:theme") === "dark" ? "dark" : "light"; } catch { document.documentElement.dataset.theme = "light"; }</script>
+    <link rel="preconnect" href="https://unpkg.com" crossorigin />
+    <link rel="stylesheet" href="/styles.css?v=15" />
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+    <script type="module" src="/app.js?v=18"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand-row">
+          <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+          <div>
+            <strong>MineHub</strong>
+            <small>Manager</small>
+          </div>
+          <button class="icon-button sidebar-close" id="sidebar-close" aria-label="Fermer le menu" title="Fermer">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+
+        <nav class="main-nav" aria-label="Navigation principale">
+          <button class="nav-item is-active" data-view="overview">
+            <i data-lucide="layout-dashboard"></i><span>Vue d’ensemble</span>
+          </button>
+          <button class="nav-item" data-view="players">
+            <i data-lucide="users"></i><span>Joueurs</span>
+          </button>
+          <button class="nav-item" data-view="access">
+            <i data-lucide="network"></i><span>Accès amis</span>
+          </button>
+          <button class="nav-item" data-view="generalSettings">
+            <i data-lucide="folder-cog"></i><span>Paramètres généraux</span>
+          </button>
+          <button class="nav-item" data-view="activity">
+            <i data-lucide="activity"></i><span>Activité</span>
+          </button>
+          <button class="nav-item" data-view="backups">
+            <i data-lucide="archive"></i><span>Sauvegardes</span>
+          </button>
+          <button class="nav-item" data-view="updates">
+            <i data-lucide="refresh-cw"></i><span>Mises à jour</span>
+          </button>
+          <button class="nav-item" data-view="monitoring">
+            <i data-lucide="activity"></i><span>Surveillance</span>
+          </button>
+          <button class="nav-item" data-view="settings">
+            <i data-lucide="sliders-horizontal"></i><span>Configuration</span>
+          </button>
+          <button class="nav-item" data-view="mods">
+            <i data-lucide="blocks"></i><span>Mods & plugins</span>
+          </button>
+          <button class="nav-item" data-view="console">
+            <i data-lucide="square-terminal"></i><span>Console</span>
+          </button>
+        </nav>
+
+        <div class="server-section">
+          <div class="section-label-row">
+            <span class="section-label">SERVEURS</span>
+            <button class="icon-button subtle" data-open-create aria-label="Créer un serveur" title="Créer un serveur">
+              <i data-lucide="plus"></i>
+            </button>
+          </div>
+          <div class="server-list" id="server-list"></div>
+        </div>
+
+        <div class="sidebar-footer">
+          <button class="connection-card" id="open-connection">
+            <span class="connection-icon"><i data-lucide="hard-drive"></i></span>
+            <span class="connection-copy">
+              <strong id="connection-name">Cet appareil</strong>
+              <small><span class="status-dot online"></span><span id="connection-status">Agent connecté</span></small>
+            </span>
+            <i data-lucide="chevrons-up-down" class="connection-switch"></i>
+          </button>
+        </div>
+      </aside>
+
+      <div class="sidebar-scrim" id="sidebar-scrim"></div>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="icon-button mobile-menu" id="mobile-menu" aria-label="Ouvrir le menu" title="Menu">
+              <i data-lucide="menu"></i>
+            </button>
+            <div>
+              <div class="breadcrumb"><span>Serveurs</span><i data-lucide="chevron-right"></i><strong id="breadcrumb-server">Accueil</strong></div>
+              <h1 id="page-title">Vue d’ensemble</h1>
+            </div>
+          </div>
+          <div class="topbar-actions" id="topbar-actions">
+            <button class="icon-button theme-toggle" id="theme-toggle" type="button" aria-label="Activer le mode sombre" title="Activer le mode sombre"><i data-lucide="moon"></i></button>
+            <button class="button secondary" data-open-create><i data-lucide="plus"></i><span>Nouveau serveur</span></button>
+          </div>
+        </header>
+
+        <div class="page" id="page-content" aria-live="polite"></div>
+      </main>
+    </div>
+
+    <dialog class="modal connection-modal" id="connection-dialog">
+      <form method="dialog" class="modal-shell" id="connection-form">
+        <header class="modal-header">
+          <div>
+            <span class="eyebrow">AGENT MINEHUB</span>
+            <h2>Choisir une connexion</h2>
+          </div>
+          <button class="icon-button" value="cancel" aria-label="Fermer" title="Fermer"><i data-lucide="x"></i></button>
+        </header>
+
+        <div class="segmented" id="connection-mode" role="group" aria-label="Mode de connexion">
+          <button type="button" class="is-active" data-mode="local"><i data-lucide="monitor"></i>Cet appareil</button>
+          <button type="button" data-mode="remote"><i data-lucide="cloud"></i>Serveur distant</button>
+        </div>
+
+        <div class="connection-local" id="connection-local">
+          <div class="agent-summary">
+            <span class="agent-glyph"><i data-lucide="server"></i></span>
+            <div><strong>Agent local</strong><span id="local-agent-detail">Détection en cours…</span></div>
+            <span class="pill success">Disponible</span>
+          </div>
+        </div>
+
+        <div class="connection-remote" id="connection-remote" hidden>
+          <label class="field">
+            <span>Adresse de l’agent</span>
+            <div class="input-with-icon"><i data-lucide="link"></i><input id="remote-url" type="url" placeholder="https://serveur.exemple.fr:4173" autocomplete="url" /></div>
+          </label>
+          <label class="field">
+            <span>Jeton MCM_TOKEN</span>
+            <div class="input-with-icon"><i data-lucide="key-round"></i><input id="remote-token" type="password" placeholder="••••••••••••••••" autocomplete="current-password" /></div>
+          </label>
+        </div>
+
+        <div class="connection-feedback" id="connection-feedback" hidden></div>
+        <footer class="modal-footer">
+          <button class="button ghost" value="cancel">Annuler</button>
+          <button class="button primary" type="submit" id="connect-button"><i data-lucide="plug-zap"></i>Se connecter</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog class="modal create-modal" id="create-dialog">
+      <form method="dialog" class="modal-shell" id="create-form">
+        <header class="modal-header">
+          <div>
+            <span class="eyebrow">NOUVELLE INSTANCE</span>
+            <h2>Créer un serveur</h2>
+          </div>
+          <button class="icon-button" value="cancel" aria-label="Fermer" title="Fermer"><i data-lucide="x"></i></button>
+        </header>
+
+        <div class="wizard-progress" aria-label="Progression">
+          <button type="button" class="wizard-step is-active" data-go-step="1"><span>1</span><strong>Distribution</strong></button>
+          <span class="wizard-line"></span>
+          <button type="button" class="wizard-step" data-go-step="2"><span>2</span><strong>Réglages</strong></button>
+          <span class="wizard-line"></span>
+          <button type="button" class="wizard-step" data-go-step="3"><span>3</span><strong>Validation</strong></button>
+        </div>
+
+        <div class="wizard-body">
+          <section class="wizard-panel is-active" data-step="1">
+            <div class="panel-heading">
+              <div><h3>Distribution Minecraft</h3><p>Le catalogue de versions est synchronisé avec la source sélectionnée.</p></div>
+            </div>
+            <div class="distribution-grid" id="distribution-grid">
+              <button type="button" class="distribution-card is-selected" data-type="paper">
+                <span class="distribution-logo paper-logo">P</span>
+                <span><strong>Paper</strong><small>Performant · Plugins</small></span>
+                <i data-lucide="circle-check"></i>
+              </button>
+              <button type="button" class="distribution-card" data-type="fabric">
+                <span class="distribution-logo fabric-logo">F</span>
+                <span><strong>Fabric</strong><small>Léger · Mods</small></span>
+                <i data-lucide="circle-check"></i>
+              </button>
+              <button type="button" class="distribution-card" data-type="vanilla">
+                <span class="distribution-logo vanilla-logo"><i data-lucide="box"></i></span>
+                <span><strong>Vanilla</strong><small>Officiel · Pur</small></span>
+                <i data-lucide="circle-check"></i>
+              </button>
+            </div>
+
+            <div class="two-columns create-fields">
+              <label class="field">
+                <span>Nom du serveur</span>
+                <input id="create-name" name="name" required maxlength="48" placeholder="Survie entre amis" />
+              </label>
+              <label class="field version-field">
+                <span>Version Minecraft</span>
+                <div class="combobox" id="version-combobox">
+                  <i data-lucide="search"></i>
+                  <input id="version-search" autocomplete="off" placeholder="Rechercher une version…" />
+                  <i data-lucide="chevron-down" class="combo-chevron"></i>
+                  <input type="hidden" id="create-version" required />
+                  <div class="combobox-options" id="version-options" hidden></div>
+                </div>
+              </label>
+            </div>
+          </section>
+
+          <section class="wizard-panel" data-step="2">
+            <div class="settings-group first">
+              <div class="settings-title"><i data-lucide="gamepad-2"></i><div><h3>Partie</h3><p>Paramètres écrits dans server.properties.</p></div></div>
+              <div class="settings-fields three-columns">
+                <label class="field"><span>Mode de jeu</span><select id="create-gamemode"><option value="survival">Survie</option><option value="creative">Créatif</option><option value="adventure">Aventure</option><option value="spectator">Spectateur</option></select></label>
+                <label class="field"><span>Difficulté</span><select id="create-difficulty"><option value="peaceful">Paisible</option><option value="easy">Facile</option><option value="normal" selected>Normale</option><option value="hard">Difficile</option></select></label>
+                <label class="field"><span>Joueurs max.</span><input id="create-max-players" type="number" min="1" max="500" value="20" /></label>
+              </div>
+            </div>
+
+            <div class="settings-group">
+              <div class="settings-title"><i data-lucide="cpu"></i><div><h3>Ressources</h3><p>Allocation appliquée au processus Java.</p></div></div>
+              <div class="settings-fields two-columns">
+                <label class="field"><span>Mémoire initiale</span><div class="input-suffix"><input id="create-memory-min" type="number" min="512" step="512" value="1024" /><span>Mo</span></div></label>
+                <label class="field"><span>Mémoire maximale</span><div class="input-suffix"><input id="create-memory-max" type="number" min="1024" step="512" value="4096" /><span>Mo</span></div></label>
+              </div>
+            </div>
+
+            <div class="settings-group">
+              <div class="settings-title"><i data-lucide="shield-check"></i><div><h3>Accès</h3><p>Authentification et règles multijoueur.</p></div></div>
+              <div class="toggle-list">
+                <label class="toggle-row"><span><strong>Authentification officielle</strong><small>Vérifie les comptes Microsoft/Mojang.</small></span><input id="create-online-mode" type="checkbox" checked /><span class="switch"></span></label>
+                <label class="toggle-row"><span><strong>Liste blanche</strong><small>Réserve l’accès aux joueurs autorisés.</small></span><input id="create-whitelist" type="checkbox" /><span class="switch"></span></label>
+                <label class="toggle-row"><span><strong>Combat entre joueurs</strong><small>Autorise les dégâts entre joueurs.</small></span><input id="create-pvp" type="checkbox" checked /><span class="switch"></span></label>
+              </div>
+              <div class="inline-warning" id="crack-warning" hidden><i data-lucide="shield-alert"></i><span>Le mode crack désactive la vérification des comptes. Activez une liste blanche pour limiter les risques.</span></div>
+            </div>
+          </section>
+
+          <section class="wizard-panel" data-step="3">
+            <div class="review-card" id="create-review"></div>
+            <label class="eula-check">
+              <input type="checkbox" id="create-eula" />
+              <span class="check-box"><i data-lucide="check"></i></span>
+              <span>J’accepte l’<a href="https://aka.ms/MinecraftEULA" target="_blank" rel="noreferrer">EULA Minecraft</a> pour cette instance.</span>
+            </label>
+          </section>
+        </div>
+
+        <footer class="modal-footer wizard-footer">
+          <button class="button ghost" type="button" id="wizard-back" hidden><i data-lucide="arrow-left"></i>Retour</button>
+          <span class="footer-spacer"></span>
+          <button class="button ghost" value="cancel">Annuler</button>
+          <button class="button primary" type="button" id="wizard-next">Continuer<i data-lucide="arrow-right"></i></button>
+          <button class="button primary" type="submit" id="wizard-create" hidden><i data-lucide="download"></i>Créer et installer</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <div class="toast-region" id="toast-region" aria-live="assertive"></div>
+  </body>
+</html>
