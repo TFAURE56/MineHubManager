@@ -113,6 +113,14 @@ button:disabled {
   border-right: 1px solid #0f1113;
 }
 
+.sidebar-navigation {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #3f464b transparent;
+}
+
 .brand-row {
   display: flex;
   align-items: center;
@@ -220,9 +228,9 @@ button:disabled {
 }
 
 .server-section {
-  min-height: 0;
+  min-height: auto;
   display: flex;
-  flex: 1;
+  flex: 0 0 auto;
   flex-direction: column;
   padding: 10px 12px;
 }
@@ -269,10 +277,7 @@ button:disabled {
 }
 
 .server-list {
-  min-height: 0;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #3f464b transparent;
+  overflow: visible;
 }
 
 .server-list-empty {
@@ -841,6 +846,15 @@ button:disabled {
   gap: 18px;
 }
 
+.dashboard-grid > .console:not(.expanded) {
+  height: 100%;
+  min-height: 0;
+}
+
+.dashboard-grid > .console:not(.expanded) .console-output {
+  flex: 1 1 0;
+}
+
 .panel {
   min-width: 0;
   border: 1px solid var(--line);
@@ -877,6 +891,10 @@ button:disabled {
   overflow: hidden;
   background: #181b1e;
   color: #d7ddda;
+}
+
+.console.expanded {
+  height: calc(100vh - 220px);
 }
 
 .console .panel-header {
@@ -941,6 +959,7 @@ button:disabled {
 
 .console-output {
   height: 278px;
+  min-height: 0;
   overflow: auto;
   flex: 1;
   padding: 16px 18px;

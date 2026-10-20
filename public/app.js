@@ -350,7 +350,12 @@ async function loadLogs() {
     state.logs = [];
   }
   const output = $("#console-output");
-  if (output) output.innerHTML = renderConsoleLines(server);
+  if (output) {
+    const wasAtBottom = output.scrollHeight - output.clientHeight - output.scrollTop < 24;
+    const previousScrollTop = output.scrollTop;
+    output.innerHTML = renderConsoleLines(server);
+    output.scrollTop = wasAtBottom ? output.scrollHeight : previousScrollTop;
+  }
 }
 
 function renderConsoleLines(server) {
@@ -618,7 +623,7 @@ function renderInstallation(server) {
 function renderConsole(server, expanded = false) {
   const lines = renderConsoleLines(server);
   return `
-    <section class="panel console" ${expanded ? "style=\"min-height:calc(100vh - 220px)\"" : ""}>
+    <section class="panel console${expanded ? " expanded" : ""}">
       <header class="panel-header">
         <div><h2>Console</h2><p>${server.status === "online" ? "Flux Java actif" : statusLabels[server.status] || "Serveur arrêté"}</p></div>
         ${expanded ? "" : `<button class="button compact ghost" data-view-link="console">Agrandir<i data-lucide="maximize-2"></i></button>`}
@@ -1316,6 +1321,11 @@ function renderMods(server) {
 }
 
 function render() {
+  const previousOutput = $("#console-output");
+  const previousOutputWasAtBottom = previousOutput
+    ? previousOutput.scrollHeight - previousOutput.clientHeight - previousOutput.scrollTop < 24
+    : true;
+  const previousOutputScrollTop = previousOutput?.scrollTop || 0;
   renderSidebar();
   const server = selectedServer();
   $("#page-title").textContent = pageTitles[state.activeView] || pageTitles.overview;
@@ -1353,7 +1363,7 @@ function render() {
   refreshIcons();
   requestAnimationFrame(() => {
     const output = $("#console-output");
-    if (output) output.scrollTop = output.scrollHeight;
+    if (output) output.scrollTop = previousOutputWasAtBottom ? output.scrollHeight : previousOutputScrollTop;
   });
 }
 
