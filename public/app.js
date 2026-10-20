@@ -14,6 +14,7 @@ const state = {
   createStep: 1,
   createType: "paper",
   logs: [],
+<<<<<<< HEAD
   logSearch: "",
   logLevel: "all",
   logSearchTimer: null,
@@ -21,6 +22,11 @@ const state = {
   accessLists: { ops: [], whitelist: [], banned: [] },
   playersMeta: { online: 0, max: 0 },
   playerStats: [],
+=======
+  players: [],
+  accessLists: { ops: [], whitelist: [], banned: [] },
+  playersMeta: { online: 0, max: 0 },
+>>>>>>> 77abf2e (0.5.1)
   selectedPlayer: null,
   events: [],
   eventCounts: {},
@@ -31,29 +37,48 @@ const state = {
   settingsGroup: "general",
   modResults: null,
   modSearching: false,
+<<<<<<< HEAD
   modUpdates: null,
   modUpdateChecking: false,
   modUpdating: null,
   modUpdateError: null,
+=======
+>>>>>>> 77abf2e (0.5.1)
   backups: [],
   backupRunning: false,
   backupsLoadedAt: 0,
   backupSchedule: { enabled: false, intervalHours: 24, retention: 5, nextRunAt: null },
   updateInfo: null,
   updateRunning: false,
+<<<<<<< HEAD
+=======
+  appUpdateSettings: { repository: "" },
+  appUpdateSettingsLoaded: false,
+  appUpdateInfo: null,
+  appUpdateLoading: false,
+  appUpdateInstalling: false,
+>>>>>>> 77abf2e (0.5.1)
   metrics: null,
   metricsHistory: [],
   metricsLoadedAt: 0,
   prerequisites: null,
+<<<<<<< HEAD
   generalSettings: null,
   generalSettingsLoading: false,
   generalSettingsError: null,
+=======
+  prerequisitesLoading: false,
+  prerequisitesError: null,
+>>>>>>> 77abf2e (0.5.1)
 };
 
 const pageTitles = {
   overview: "Vue d’ensemble",
   players: "Joueurs",
+<<<<<<< HEAD
   access: "Accès amis",
+=======
+>>>>>>> 77abf2e (0.5.1)
   activity: "Activité",
   backups: "Sauvegardes",
   updates: "Mises à jour",
@@ -61,7 +86,10 @@ const pageTitles = {
   settings: "Configuration",
   mods: "Mods & plugins",
   console: "Console",
+<<<<<<< HEAD
   generalSettings: "Paramètres généraux",
+=======
+>>>>>>> 77abf2e (0.5.1)
 };
 
 const statusLabels = {
@@ -147,6 +175,7 @@ function refreshIcons() {
   if (window.lucide) window.lucide.createIcons({ attrs: { "aria-hidden": "true" } });
 }
 
+<<<<<<< HEAD
 function applyTheme(theme) {
   const dark = theme === "dark";
   document.documentElement.dataset.theme = dark ? "dark" : "light";
@@ -169,6 +198,8 @@ function toggleTheme() {
   applyTheme(theme);
 }
 
+=======
+>>>>>>> 77abf2e (0.5.1)
 async function api(path, options = {}, connection = state.connection) {
   const base = String(connection.base || "").replace(/\/$/, "");
   const headers = { Accept: "application/json", ...options.headers };
@@ -245,6 +276,7 @@ async function loadHealth() {
   updateConnectionUI();
 }
 
+<<<<<<< HEAD
 async function loadGeneralSettings() {
   state.generalSettingsLoading = true;
   state.generalSettingsError = null;
@@ -257,6 +289,8 @@ async function loadGeneralSettings() {
   }
 }
 
+=======
+>>>>>>> 77abf2e (0.5.1)
 async function loadServers({ silent = false } = {}) {
   try {
     const data = await api("/api/servers");
@@ -277,6 +311,7 @@ async function loadLogs() {
   const server = selectedServer();
   if (!server) return;
   try {
+<<<<<<< HEAD
     const params = new URLSearchParams({ search: state.logSearch, level: state.logLevel });
     state.logs = (await api(`/api/servers/${server.id}/logs?${params}`)).logs || [];
   } catch {
@@ -310,6 +345,12 @@ async function exportLogs(button) {
   } catch (error) {
     toast("Export impossible", error.message, "error");
   }
+=======
+    state.logs = (await api(`/api/servers/${server.id}/logs`)).logs || [];
+  } catch {
+    state.logs = [];
+  }
+>>>>>>> 77abf2e (0.5.1)
 }
 
 async function loadPlayers() {
@@ -319,7 +360,10 @@ async function loadPlayers() {
     const data = await api(`/api/servers/${server.id}/players`);
     state.players = data.players || [];
     state.accessLists = data.accessLists || { ops: [], whitelist: [], banned: [] };
+<<<<<<< HEAD
     state.playerStats = data.playerStats || [];
+=======
+>>>>>>> 77abf2e (0.5.1)
     state.playersMeta = { online: data.online || 0, max: data.max || server.settings.maxPlayers, refreshedAt: data.refreshedAt };
     if (!state.selectedPlayer || !state.players.some((player) => player.name === state.selectedPlayer)) {
       state.selectedPlayer = state.players[0]?.name || null;
@@ -327,7 +371,10 @@ async function loadPlayers() {
   } catch {
     state.players = [];
     state.accessLists = { ops: [], whitelist: [], banned: [] };
+<<<<<<< HEAD
     state.playerStats = [];
+=======
+>>>>>>> 77abf2e (0.5.1)
     state.playersMeta = { online: 0, max: server.settings.maxPlayers };
   }
 }
@@ -382,6 +429,95 @@ async function loadUpdateCheck() {
   }
 }
 
+<<<<<<< HEAD
+=======
+async function loadAppUpdateSettings({ force = false, notify = false } = {}) {
+  if (state.appUpdateSettingsLoaded && !force) return;
+  try {
+    state.appUpdateSettings = await api("/api/app-updates/settings");
+    state.appUpdateSettingsLoaded = true;
+    if (state.appUpdateSettings.repository) {
+      state.appUpdateInfo = await api("/api/app-updates/check");
+      if (notify && state.appUpdateInfo.updateAvailable) {
+        toast("Mise à jour MineHub disponible", `La version ${state.appUpdateInfo.latest.version} peut être installée.`);
+      }
+    } else state.appUpdateInfo = null;
+  } catch (error) {
+    state.appUpdateSettings = { repository: "", error: error.message };
+    state.appUpdateSettingsLoaded = true;
+  } finally {
+    render();
+  }
+}
+
+async function checkAppUpdate() {
+  state.appUpdateLoading = true;
+  state.appUpdateInfo = null;
+  render();
+  try {
+    state.appUpdateInfo = await api("/api/app-updates/check");
+  } catch (error) {
+    state.appUpdateInfo = { error: error.message };
+  } finally {
+    state.appUpdateLoading = false;
+    render();
+  }
+}
+
+async function installAppUpdate() {
+  const version = state.appUpdateInfo?.latest?.version;
+  const busyServers = state.servers.some((server) => ["online", "external", "starting", "stopping", "installing"].includes(server.status));
+  if (!version || !state.appUpdateInfo?.updateAvailable || state.appUpdateInstalling || busyServers) return;
+  if (!window.confirm(`Installer MineHub ${version} ? L'agent va redemarrer. Les donnees et mondes Minecraft seront conserves.`)) return;
+  state.appUpdateInstalling = true;
+  render();
+  try {
+    await api("/api/app-updates/install", { method: "POST", body: "{}" });
+    const deadline = Date.now() + 90_000;
+    let health = null;
+    while (Date.now() < deadline) {
+      await new Promise((resolveWait) => setTimeout(resolveWait, 1200));
+      try {
+        health = await api("/api/health");
+        if (health.version === version) break;
+        health = null;
+      } catch {
+        health = null;
+      }
+    }
+    if (!health) throw new Error("L'agent ne repond pas encore. Consulte les journaux de mise a jour puis relance MineHub si besoin.");
+    state.health = health;
+    state.appUpdateInfo = { ...state.appUpdateInfo, currentVersion: version, updateAvailable: false };
+    toast("MineHub mis a jour", `Version ${version} installee et agent redemarre.`);
+  } catch (error) {
+    toast("Mise a jour automatique impossible", error.message, "error");
+  } finally {
+    state.appUpdateInstalling = false;
+    render();
+  }
+}
+
+async function saveAppUpdateSettings(form) {
+  const button = $("button[type=submit]", form);
+  setButtonLoading(button, true, "Enregistrement…");
+  try {
+    state.appUpdateSettings = await api("/api/app-updates/settings", {
+      method: "PATCH",
+      body: JSON.stringify({ repository: new FormData(form).get("repository") }),
+    });
+    state.appUpdateSettingsLoaded = true;
+    toast("Source GitHub enregistrée", state.appUpdateSettings.repository || "Source supprimée");
+    if (state.appUpdateSettings.repository) await checkAppUpdate();
+    else state.appUpdateInfo = null;
+  } catch (error) {
+    toast("Enregistrement impossible", error.message, "error");
+  } finally {
+    render();
+    if (button.isConnected) setButtonLoading(button, false);
+  }
+}
+
+>>>>>>> 77abf2e (0.5.1)
 async function applyServerUpdate(button) {
   const server = selectedServer();
   if (!server || state.updateRunning || server.status !== "offline") return;
@@ -439,11 +575,24 @@ async function loadMetrics({ notify = false } = {}) {
 }
 
 async function loadPrerequisites({ notify = false } = {}) {
+<<<<<<< HEAD
   try {
     state.prerequisites = await api("/api/prerequisites");
   } catch (error) {
     state.prerequisites = { error: error.message };
     if (notify) toast("Vérification impossible", error.message, "error");
+=======
+  state.prerequisitesLoading = true;
+  try {
+    state.prerequisites = await api("/api/prerequisites");
+    state.prerequisitesError = null;
+  } catch (error) {
+    state.prerequisites = null;
+    state.prerequisitesError = error.message;
+    if (notify) toast("Vérification impossible", error.message, "error");
+  } finally {
+    state.prerequisitesLoading = false;
+>>>>>>> 77abf2e (0.5.1)
   }
 }
 
@@ -549,13 +698,20 @@ function renderInstallation(server) {
 }
 
 function renderConsole(server, expanded = false) {
+<<<<<<< HEAD
   const lines = renderConsoleLines(server);
+=======
+  const lines = state.logs.length
+    ? state.logs.map((line) => `<div class="console-line"><span class="console-time">${escapeHtml(line.time)}</span><span>${escapeHtml(line.text)}</span></div>`).join("")
+    : `<div class="console-empty"><span>${server.status === "offline" ? "La console apparaîtra au démarrage du serveur." : "En attente des premières lignes…"}</span></div>`;
+>>>>>>> 77abf2e (0.5.1)
   return `
     <section class="panel console" ${expanded ? "style=\"min-height:calc(100vh - 220px)\"" : ""}>
       <header class="panel-header">
         <div><h2>Console</h2><p>${server.status === "online" ? "Flux Java actif" : statusLabels[server.status] || "Serveur arrêté"}</p></div>
         ${expanded ? "" : `<button class="button compact ghost" data-view-link="console">Agrandir<i data-lucide="maximize-2"></i></button>`}
       </header>
+<<<<<<< HEAD
       <div class="console-tools">
         <label class="console-search"><i data-lucide="search"></i><input id="console-search" type="search" value="${escapeHtml(state.logSearch)}" placeholder="Rechercher dans les journaux" aria-label="Rechercher dans les journaux" /></label>
         <select id="console-level" aria-label="Filtrer par niveau">
@@ -566,6 +722,8 @@ function renderConsole(server, expanded = false) {
         </select>
         <button class="icon-button" type="button" data-export-logs aria-label="Télécharger les journaux" title="Télécharger les journaux"><i data-lucide="download"></i></button>
       </div>
+=======
+>>>>>>> 77abf2e (0.5.1)
       <div class="console-output" id="console-output">${lines}</div>
       <form class="console-form" id="console-form">
         <span>&gt;</span>
@@ -613,12 +771,18 @@ function renderOverview(server) {
 }
 
 function formatSession(seconds) {
+<<<<<<< HEAD
   const totalMinutes = Math.floor((seconds || 0) / 60);
   const days = Math.floor(totalMinutes / 1440);
   const hours = Math.floor((totalMinutes % 1440) / 60);
   const minutes = totalMinutes % 60;
   if (days) return `${days} j ${hours} h`;
   return hours ? `${hours} h ${minutes} min` : `${minutes} min`;
+=======
+  const minutes = Math.floor((seconds || 0) / 60);
+  const hours = Math.floor(minutes / 60);
+  return hours ? `${hours} h ${minutes % 60} min` : `${minutes} min`;
+>>>>>>> 77abf2e (0.5.1)
 }
 
 function normalizedSearch(value) {
@@ -787,7 +951,10 @@ function renderPlayers(server) {
         </div>
         <aside class="player-inspector">${renderPlayerInspector(selected)}</aside>
       </div>
+<<<<<<< HEAD
       ${renderPlayerStats()}
+=======
+>>>>>>> 77abf2e (0.5.1)
       <div class="page-heading access-heading"><div><h2>Accès et modération</h2><p>Les listes restent consultables et modifiables serveur arrêté.</p></div></div>
       <div class="access-grid">
         ${renderAccessList("ops", "Opérateurs", "Permissions d'administration", "crown", accessLists.ops || [])}
@@ -798,6 +965,7 @@ function renderPlayers(server) {
   `;
 }
 
+<<<<<<< HEAD
 function renderFriendAccess(server) {
   const address = server.publicAddress || "";
   const [agentMajor = 0, agentMinor = 0] = String(state.health?.version || "0.0.0").split(".").map(Number);
@@ -883,6 +1051,8 @@ function renderPlayerStats() {
   `;
 }
 
+=======
+>>>>>>> 77abf2e (0.5.1)
 const eventMeta = {
   join: { label: "Connexions", icon: "log-in", tone: "green" },
   leave: { label: "Déconnexions", icon: "log-out", tone: "muted" },
@@ -890,7 +1060,10 @@ const eventMeta = {
   pvp: { label: "PvP", icon: "swords", tone: "red" },
   advancement: { label: "Succès", icon: "trophy", tone: "amber" },
   chat: { label: "Chat", icon: "message-square", tone: "blue" },
+<<<<<<< HEAD
   crash: { label: "Arrêt anormal", icon: "triangle-alert", tone: "red" },
+=======
+>>>>>>> 77abf2e (0.5.1)
   admin: { label: "Administration", icon: "shield", tone: "violet" },
   system: { label: "Système", icon: "server-cog", tone: "muted" },
 };
@@ -901,13 +1074,21 @@ function formatEventDate(timestamp) {
 }
 
 function renderActivity(server) {
+<<<<<<< HEAD
   const filters = ["all", "join", "leave", "death", "pvp", "advancement", "chat", "crash", "admin", "system"];
+=======
+  const filters = ["all", "join", "death", "pvp", "advancement", "chat", "admin", "system"];
+>>>>>>> 77abf2e (0.5.1)
   return `
     <section class="activity-page">
       ${renderServerHero(server)}
       <div class="page-heading"><div><h2>Activité globale</h2><p>Historique persistant des événements importants.</p></div><button class="button secondary" data-refresh-events><i data-lucide="refresh-cw"></i>Actualiser</button></div>
       <section class="activity-stats">
+<<<<<<< HEAD
         <div><span>Morts</span><strong>${state.eventCounts.death || 0}</strong></div><div><span>Éliminations PvP</span><strong>${state.eventCounts.pvp || 0}</strong></div><div><span>Succès</span><strong>${state.eventCounts.advancement || 0}</strong></div><div><span>Connexions</span><strong>${state.eventCounts.join || 0}</strong></div><div><span>Messages</span><strong>${state.eventCounts.chat || 0}</strong></div>
+=======
+        <div><span>Morts</span><strong>${state.eventCounts.death || 0}</strong></div><div><span>Éliminations PvP</span><strong>${state.eventCounts.pvp || 0}</strong></div><div><span>Succès</span><strong>${state.eventCounts.advancement || 0}</strong></div><div><span>Connexions</span><strong>${state.eventCounts.join || 0}</strong></div>
+>>>>>>> 77abf2e (0.5.1)
       </section>
       <section class="panel activity-panel">
         <div class="activity-toolbar">
@@ -973,13 +1154,37 @@ function renderMonitoring(server) {
   if (memoryPercent >= 90) alerts.push({ tone: "warning", text: `La mémoire Java est utilisée à ${memoryPercent.toFixed(0)} %.` });
   if (host?.disk?.freeBytes < 5 * 1024 ** 3) alerts.push({ tone: "danger", text: `Il reste moins de 5 Go sur le disque de l’agent (${formatBytes(host.disk.freeBytes)}).` });
   const nextRun = state.backupSchedule?.nextRunAt;
+<<<<<<< HEAD
   const prerequisites = state.prerequisites;
   const node = prerequisites?.node;
   const java = prerequisites?.java;
+=======
+  const node = state.prerequisites?.node;
+  const java = state.prerequisites?.java;
+  const prerequisitesRows = [
+    {
+      icon: "box",
+      name: "Node.js",
+      value: node?.version || "Non vérifié",
+      detail: node?.executable || "Runtime utilisé par MineHub",
+      status: node?.compatible ? "Compatible" : node ? `Requis : ${node.minimumMajor}+` : "En attente",
+      tone: node?.compatible ? "success" : node ? "danger" : "",
+    },
+    {
+      icon: "coffee",
+      name: "Java",
+      value: java?.installed ? java.version : java ? "Non installé" : "Non vérifié",
+      detail: java?.executable || "Nécessaire pour démarrer Minecraft",
+      status: java?.installed ? "Détecté" : java ? "Installation requise" : "En attente",
+      tone: java?.installed ? "success" : java ? "danger" : "",
+    },
+  ];
+>>>>>>> 77abf2e (0.5.1)
   return `
     <section class="monitoring-page">
       ${renderServerHero(server)}
       <div class="page-heading"><div><h2>Surveillance</h2><p>État du processus Java et de la machine hôte.</p></div><button class="button secondary" data-refresh-monitoring><i data-lucide="refresh-cw"></i>Actualiser</button></div>
+<<<<<<< HEAD
       <section class="panel prerequisite-panel">
         <header class="panel-header"><div><h2>Prérequis de l’agent</h2><p>Versions détectées sur cette machine</p></div><span class="pill ${node?.compatible && java?.installed ? "success" : prerequisites ? "warning" : ""}">${prerequisites ? node?.compatible && java?.installed ? "Opérationnel" : "À vérifier" : "Vérification…"}</span></header>
         ${prerequisites?.error ? `<div class="prerequisite-error">${escapeHtml(prerequisites.error)}</div>` : `<div class="prerequisite-list">
@@ -988,6 +1193,16 @@ function renderMonitoring(server) {
         </div>`}
       </section>
       ${alerts.length ? `<div class="monitor-alerts">${alerts.map((alert) => `<div class="notice ${alert.tone}"><i data-lucide="${alert.tone === "danger" ? "triangle-alert" : "activity"}"></i><span>${escapeHtml(alert.text)}</span></div>`).join("")}</div>` : `<div class="monitor-ok"><i data-lucide="circle-check"></i><span>Aucune alerte de ressources.</span></div>`}
+=======
+      ${alerts.length ? `<div class="monitor-alerts">${alerts.map((alert) => `<div class="notice ${alert.tone}"><i data-lucide="${alert.tone === "danger" ? "triangle-alert" : "activity"}"></i><span>${escapeHtml(alert.text)}</span></div>`).join("")}</div>` : `<div class="monitor-ok"><i data-lucide="circle-check"></i><span>Aucune alerte de ressources.</span></div>`}
+      <section class="panel prerequisite-panel">
+        <header class="panel-header"><div><h2>Prérequis de l’hôte</h2><p>Contrôle de Node.js et de Java sur la machine qui exécute MineHub.</p></div><button class="icon-button" data-refresh-prerequisites aria-label="Vérifier Node.js et Java" title="Vérifier"><i data-lucide="refresh-cw"></i></button></header>
+        ${state.prerequisitesLoading ? `<div class="chart-empty"><div class="spinner"></div></div>` : state.prerequisitesError ? `<div class="notice danger"><i data-lucide="circle-alert"></i><span>${escapeHtml(state.prerequisitesError)}</span></div>` : `
+          <div class="prerequisite-list">${prerequisitesRows.map((item) => `<article class="prerequisite-row"><span class="prerequisite-icon"><i data-lucide="${item.icon}"></i></span><div class="prerequisite-copy"><strong>${item.name}</strong><span>${escapeHtml(item.value)}</span><code>${escapeHtml(item.detail)}</code></div><span class="pill ${item.tone}">${item.status}</span></article>`).join("")}</div>
+          <div class="prerequisite-footnote">La compatibilité Java requise dépend de la version Minecraft et de sa distribution.</div>
+        `}
+      </section>
+>>>>>>> 77abf2e (0.5.1)
       <div class="monitor-grid">
         <section class="monitor-card"><div><span>CPU Java</span><i data-lucide="cpu"></i></div><strong>${process ? `${process.cpuPercent.toLocaleString("fr-FR")} %` : "—"}</strong><small>${host ? `Hôte : ${host.cpuPercent.toLocaleString("fr-FR")} %` : "Processus arrêté"}</small><div class="meter"><span style="width:${Math.min(100, process?.cpuPercent || 0)}%"></span></div></section>
         <section class="monitor-card"><div><span>Mémoire Java</span><i data-lucide="memory-stick"></i></div><strong>${process ? formatBytes(process.memoryBytes) : "—"}</strong><small>${process ? `${formatBytes(process.memoryLimitBytes)} alloués · ${memoryPercent.toFixed(0)} %` : "Processus arrêté"}</small><div class="meter"><span style="width:${memoryPercent}%"></span></div></section>
@@ -1038,6 +1253,49 @@ function renderBackups(server) {
     </section>`;
 }
 
+<<<<<<< HEAD
+=======
+function renderAppUpdates() {
+  const info = state.appUpdateInfo;
+  const repository = state.appUpdateSettings.repository || "";
+  const busyServers = state.servers.some((server) => ["online", "external", "starting", "stopping", "installing"].includes(server.status));
+  const statusTitle = state.appUpdateLoading
+    ? "Recherche de la dernière Release"
+    : info?.error
+      ? "Vérification impossible"
+      : info?.updateAvailable
+        ? "Mise à jour de MineHub disponible"
+        : info
+          ? "MineHub est à jour"
+          : "Mise à jour de MineHub";
+  const releaseNotes = info?.latest?.notes
+    ? escapeHtml(info.latest.notes).replace(/\r?\n/g, "<br>")
+    : "Aucune note de version fournie.";
+
+  return `
+    <section class="panel app-update-panel">
+      <header class="panel-header"><div><h2>${statusTitle}</h2><p>Version installée : ${escapeHtml(state.health?.version || "inconnue")}${info?.latest ? ` · Version GitHub : ${escapeHtml(info.latest.version)}` : ""}</p></div><span class="pill ${info?.updateAvailable ? "warning" : info && !info.error ? "success" : ""}">${info?.updateAvailable ? "Disponible" : info && !info.error ? "À jour" : "MineHub"}</span></header>
+      <form class="app-update-source" id="app-update-source-form">
+        <label class="field"><span>Dépôt GitHub public (owner/repo)</span><input name="repository" value="${escapeHtml(repository)}" placeholder="ex. owner/MineHub" autocomplete="off" /></label>
+        <button class="button secondary" type="submit"><i data-lucide="save"></i>Enregistrer</button>
+        <button class="button primary" type="button" data-check-app-update ${!repository || state.appUpdateLoading ? "disabled" : ""}><i data-lucide="refresh-cw"></i>${state.appUpdateLoading ? "Vérification…" : "Vérifier"}</button>
+      </form>
+      ${state.appUpdateSettings.error ? `<div class="notice"><i data-lucide="circle-alert"></i><span>${escapeHtml(state.appUpdateSettings.error)}</span></div>` : ""}
+      ${info?.error ? `<div class="notice"><i data-lucide="circle-alert"></i><span>${escapeHtml(info.error)}</span></div>` : ""}
+      ${info?.latest ? `
+        <div class="app-update-release">
+          <div><span>Publication</span><strong>${escapeHtml(info.latest.name || info.latest.version)}</strong><small>${info.latest.publishedAt ? escapeHtml(formatShortDate(info.latest.publishedAt)) : "Date inconnue"}</small></div>
+          <a class="button ${info.updateAvailable ? "primary" : "secondary"}" href="${escapeHtml(info.latest.url)}" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link"></i>${info.updateAvailable ? "Ouvrir la mise à jour" : "Voir la Release"}</a>
+        </div>
+        <div class="app-update-notes">${releaseNotes}</div>
+      ` : `<div class="app-update-empty"><i data-lucide="github"></i><span>${repository ? "Lance une vérification pour consulter la dernière Release publiée." : "Configure ton dépôt GitHub pour activer la vérification des versions."}</span></div>`}
+      ${info?.updateAvailable ? `<div class="app-update-install"><button class="button primary" type="button" data-install-app-update ${state.appUpdateInstalling || busyServers ? "disabled" : ""}><i data-lucide="download"></i>${state.appUpdateInstalling ? "Installation et redémarrage…" : "Installer et redémarrer MineHub"}</button><small>${busyServers ? "Arrête tous les serveurs Minecraft avant la mise à jour." : "L'agent redémarre automatiquement. Les mondes et paramètres restent en place."}</small></div>` : ""}
+      <div class="notice"><i data-lucide="shield-check"></i><span>La mise à jour remplace les fichiers de l’application, jamais le dossier <code>data/</code>.</span></div>
+    </section>
+  `;
+}
+
+>>>>>>> 77abf2e (0.5.1)
 function renderUpdates(server) {
   const info = state.updateInfo;
   const canOperate = server.status === "offline" && !state.updateRunning;
@@ -1045,6 +1303,10 @@ function renderUpdates(server) {
     <section class="backups-page">
       ${renderServerHero(server)}
       <div class="page-heading"><div><h2>Mises à jour</h2><p>Vérifiez la distribution et revenez à la version précédente si nécessaire.</p></div><button class="button secondary" data-refresh-update ${state.updateRunning ? "disabled" : ""}><i data-lucide="refresh-cw"></i>Vérifier</button></div>
+<<<<<<< HEAD
+=======
+      ${renderAppUpdates()}
+>>>>>>> 77abf2e (0.5.1)
       <section class="panel backup-schedule">
         <header class="panel-header"><div><h2>${info?.error ? "Vérification impossible" : info?.updateAvailable ? "Mise à jour disponible" : info ? "Serveur à jour" : "Recherche des mises à jour"}</h2><p>${info?.error ? escapeHtml(info.error) : "Une sauvegarde complète est créée avant toute mise à jour."}</p></div><span class="pill ${info?.updateAvailable ? "warning" : info && !info.error ? "success" : ""}">${info?.updateAvailable ? "Disponible" : info && !info.error ? "À jour" : ""}</span></header>
         <div class="backup-summary"><div><span>Version installée</span><strong>${escapeHtml(info?.current?.version || server.version)}${info?.current?.build ? ` · ${escapeHtml(info.current.build)}` : ""}</strong></div><div><span>Dernière version stable</span><strong>${escapeHtml(info?.latest?.version || "—")}${info?.latest?.build ? ` · ${escapeHtml(info.latest.build)}` : ""}</strong></div></div>
@@ -1121,6 +1383,7 @@ function renderInstalledMods(server) {
   if (!server.mods?.length) {
     return `<div class="list-empty"><div><i data-lucide="package-open"></i><p>Aucun ${server.type === "paper" ? "plugin" : "mod"} installé.</p></div></div>`;
   }
+<<<<<<< HEAD
   const updates = state.modUpdates || [];
   const available = updates.filter((item) => item.updateAvailable).length;
   const canUpdate = server.status === "offline" && !state.modUpdating;
@@ -1132,6 +1395,15 @@ function renderInstalledMods(server) {
         ${updates.find((item) => item.id === mod.id)?.updateAvailable ? `<button class="button compact secondary mod-update-button" data-update-mod="${escapeHtml(mod.id)}" ${canUpdate ? "" : "disabled"}><i data-lucide="download"></i>MAJ</button>` : ""}
         <label class="toggle-row" style="min-height:36px;padding:4px;border:0" title="${mod.enabled ? "Désactiver" : "Activer"}"><input type="checkbox" data-mod-toggle="${escapeHtml(mod.id)}" ${mod.enabled ? "checked" : ""} ${canUpdate ? "" : "disabled"} /><span class="switch"></span></label>
         <button class="icon-button" data-remove-mod="${escapeHtml(mod.id)}" aria-label="Supprimer ${escapeHtml(mod.name)}" title="Supprimer" ${canUpdate ? "" : "disabled"}><i data-lucide="trash-2"></i></button>
+=======
+  return `<div class="mod-list">${server.mods.map((mod) => `
+    <div class="mod-row">
+      ${modIcon(mod)}
+      <div class="mod-copy"><strong>${escapeHtml(mod.name)}</strong><span>Version ${escapeHtml(mod.version)} · ${mod.enabled ? "Actif" : "Désactivé"}</span></div>
+      <div class="mod-actions">
+        <label class="toggle-row" style="min-height:36px;padding:4px;border:0" title="${mod.enabled ? "Désactiver" : "Activer"}"><input type="checkbox" data-mod-toggle="${escapeHtml(mod.id)}" ${mod.enabled ? "checked" : ""} /><span class="switch"></span></label>
+        <button class="icon-button" data-remove-mod="${escapeHtml(mod.id)}" aria-label="Supprimer ${escapeHtml(mod.name)}" title="Supprimer"><i data-lucide="trash-2"></i></button>
+>>>>>>> 77abf2e (0.5.1)
       </div>
     </div>
   `).join("")}</div>`;
@@ -1141,20 +1413,30 @@ function renderModResults() {
   if (state.modSearching) return `<div class="list-empty"><div class="spinner"></div></div>`;
   if (state.modResults === null) return `<div class="list-empty"><div><i data-lucide="search"></i><p>Recherchez un projet compatible dans Modrinth.</p></div></div>`;
   if (!state.modResults.length) return `<div class="list-empty"><div><i data-lucide="circle-slash"></i><p>Aucun résultat compatible.</p></div></div>`;
+<<<<<<< HEAD
   const canInstall = selectedServer()?.status === "offline";
+=======
+>>>>>>> 77abf2e (0.5.1)
   return `<div class="mod-list">${state.modResults.map((mod) => `
     <div class="mod-row">
       ${modIcon(mod)}
       <div class="mod-copy"><strong>${escapeHtml(mod.title)}</strong><span>${escapeHtml(mod.description)} · ${formatDownloads(mod.downloads)} téléchargements</span></div>
+<<<<<<< HEAD
       <button class="button compact secondary" data-install-mod="${escapeHtml(mod.id)}" ${canInstall ? "" : "disabled"}><i data-lucide="download"></i>Installer</button>
+=======
+      <button class="button compact secondary" data-install-mod="${escapeHtml(mod.id)}"><i data-lucide="download"></i>Installer</button>
+>>>>>>> 77abf2e (0.5.1)
     </div>
   `).join("")}</div>`;
 }
 
 function renderMods(server) {
   const unsupported = server.type === "vanilla";
+<<<<<<< HEAD
   const available = (state.modUpdates || []).filter((item) => item.updateAvailable).length;
   const canUpdate = server.status === "offline" && !state.modUpdating;
+=======
+>>>>>>> 77abf2e (0.5.1)
   return `
     <section class="mods-page">
       ${renderServerHero(server)}
@@ -1167,6 +1449,7 @@ function renderMods(server) {
           </form>
           <div class="mod-layout">
             <div class="mod-column"><div class="column-heading"><strong>Catalogue Modrinth</strong><span>${state.modResults?.length || 0} résultat(s)</span></div><div id="mod-results">${renderModResults()}</div></div>
+<<<<<<< HEAD
             <div class="mod-column">
               <div class="column-heading mod-installed-heading"><strong>Installés · ${server.mods?.length || 0}</strong><div class="mod-update-actions">
                 ${state.modUpdateChecking ? "Vérification…" : state.modUpdateError ? "Vérification indisponible" : state.modUpdates ? `${state.modUpdates.filter((item) => item.updateAvailable).length} mise(s) à jour` : ""}
@@ -1176,6 +1459,9 @@ function renderMods(server) {
               ${server.status !== "offline" ? `<div class="mod-update-notice">Arrêtez le serveur avant de modifier les fichiers des mods.</div>` : ""}
               ${renderInstalledMods(server)}
             </div>
+=======
+            <div class="mod-column"><div class="column-heading"><strong>Installés</strong><span>${server.mods?.length || 0} élément(s)</span></div>${renderInstalledMods(server)}</div>
+>>>>>>> 77abf2e (0.5.1)
           </div>
         </section>
       `}
@@ -1192,14 +1478,20 @@ function render() {
 
   if (state.loading) {
     $("#page-content").innerHTML = `<div class="skeleton"><div class="spinner"></div></div>`;
+<<<<<<< HEAD
   } else if (state.activeView === "generalSettings") {
     $("#page-content").innerHTML = renderGeneralSettings();
+=======
+>>>>>>> 77abf2e (0.5.1)
   } else if (!server) {
     $("#page-content").innerHTML = renderEmpty();
   } else if (state.activeView === "players") {
     $("#page-content").innerHTML = renderPlayers(server);
+<<<<<<< HEAD
   } else if (state.activeView === "access") {
     $("#page-content").innerHTML = renderFriendAccess(server);
+=======
+>>>>>>> 77abf2e (0.5.1)
   } else if (state.activeView === "activity") {
     $("#page-content").innerHTML = renderActivity(server);
   } else if (state.activeView === "backups") {
@@ -1242,19 +1534,28 @@ async function selectServer(serverId) {
   state.metricsLoadedAt = 0;
   state.serverProperties = null;
   state.modResults = null;
+<<<<<<< HEAD
   state.modUpdates = null;
   state.modUpdateError = null;
+=======
+>>>>>>> 77abf2e (0.5.1)
   localStorage.setItem("minehub:selected", serverId);
   await Promise.all([
     loadLogs(),
     state.activeView === "players" ? loadPlayers() : Promise.resolve(),
     state.activeView === "activity" ? loadEvents() : Promise.resolve(),
     state.activeView === "backups" ? Promise.all([loadBackups(), loadBackupSchedule()]) : Promise.resolve(),
+<<<<<<< HEAD
     state.activeView === "updates" ? loadUpdateCheck() : Promise.resolve(),
     state.activeView === "monitoring" ? Promise.all([loadMetrics(), loadBackupSchedule(), loadPrerequisites()]) : Promise.resolve(),
     state.activeView === "settings" ? loadProperties() : Promise.resolve(),
     state.activeView === "mods" ? loadModUpdates() : Promise.resolve(),
     state.activeView === "generalSettings" ? loadGeneralSettings() : Promise.resolve(),
+=======
+    state.activeView === "updates" ? Promise.all([loadUpdateCheck(), loadAppUpdateSettings()]) : Promise.resolve(),
+    state.activeView === "monitoring" ? Promise.all([loadMetrics(), loadBackupSchedule(), loadPrerequisites()]) : Promise.resolve(),
+    state.activeView === "settings" ? loadProperties() : Promise.resolve(),
+>>>>>>> 77abf2e (0.5.1)
   ]);
   render();
   document.body.classList.remove("sidebar-open");
@@ -1267,11 +1568,17 @@ async function setView(view) {
   if (view === "players") await loadPlayers();
   if (view === "activity") await loadEvents();
   if (view === "backups") await Promise.all([loadBackups(), loadBackupSchedule()]);
+<<<<<<< HEAD
   if (view === "updates") await loadUpdateCheck();
   if (view === "monitoring") await Promise.all([loadMetrics(), loadBackupSchedule(), loadPrerequisites()]);
   if (view === "settings" && !state.serverProperties) await loadProperties();
   if (view === "mods") await loadModUpdates();
   if (view === "generalSettings") await loadGeneralSettings();
+=======
+  if (view === "updates") await Promise.all([loadUpdateCheck(), loadAppUpdateSettings({ force: true })]);
+  if (view === "monitoring") await Promise.all([loadMetrics(), loadBackupSchedule(), loadPrerequisites()]);
+  if (view === "settings" && !state.serverProperties) await loadProperties();
+>>>>>>> 77abf2e (0.5.1)
   render();
   document.body.classList.remove("sidebar-open");
 }
@@ -1292,6 +1599,7 @@ async function runServerAction(action, button) {
   }
 }
 
+<<<<<<< HEAD
 async function savePublicAddress(form) {
   const server = selectedServer();
   if (!server) return;
@@ -1343,6 +1651,8 @@ async function saveGeneralSettings(form) {
   }
 }
 
+=======
+>>>>>>> 77abf2e (0.5.1)
 async function saveProperties(form) {
   const server = selectedServer();
   if (!server) return;
@@ -1565,6 +1875,7 @@ async function searchMods(form) {
   }
 }
 
+<<<<<<< HEAD
 async function loadModUpdates() {
   const server = selectedServer();
   if (!server || server.type === "vanilla") return;
@@ -1621,6 +1932,8 @@ async function updateInstalledMods(modId = null) {
   }
 }
 
+=======
+>>>>>>> 77abf2e (0.5.1)
 async function installMod(projectId, button) {
   const server = selectedServer();
   if (!server) return;
@@ -1901,7 +2214,10 @@ async function createServer(form, button) {
 }
 
 function bindEvents() {
+<<<<<<< HEAD
   $("#theme-toggle").addEventListener("click", toggleTheme);
+=======
+>>>>>>> 77abf2e (0.5.1)
   document.addEventListener("click", (event) => {
     const createButton = event.target.closest("[data-open-create]");
     if (createButton) openCreateDialog();
@@ -1924,11 +2240,14 @@ function bindEvents() {
 
   $("#page-content").addEventListener("input", (event) => {
     if (event.target.matches("[data-player-autocomplete]")) updatePlayerAutocomplete(event.target);
+<<<<<<< HEAD
     if (event.target.id === "console-search") {
       state.logSearch = event.target.value;
       clearTimeout(state.logSearchTimer);
       state.logSearchTimer = setTimeout(loadLogs, 250);
     }
+=======
+>>>>>>> 77abf2e (0.5.1)
   });
 
   $("#page-content").addEventListener("keydown", (event) => {
@@ -1971,8 +2290,11 @@ function bindEvents() {
       selectPlayerAutocomplete(input, autocompleteOption);
       return;
     }
+<<<<<<< HEAD
     const copyAddress = event.target.closest("[data-copy-public-address]");
     if (copyAddress) copyPublicAddress(copyAddress.dataset.copyPublicAddress);
+=======
+>>>>>>> 77abf2e (0.5.1)
     $$("[data-player-autocomplete]").forEach((input) => {
       if (!input.closest(".player-autocomplete").contains(event.target)) closePlayerAutocomplete(input);
     });
@@ -1982,12 +2304,15 @@ function bindEvents() {
     if (view) setView(view.dataset.viewLink);
     const install = event.target.closest("[data-install-mod]");
     if (install) installMod(install.dataset.installMod, install);
+<<<<<<< HEAD
     const checkModUpdatesButton = event.target.closest("[data-check-mod-updates]");
     if (checkModUpdatesButton) checkInstalledModUpdates();
     const updateAllMods = event.target.closest("[data-update-mods]");
     if (updateAllMods) updateInstalledMods();
     const updateMod = event.target.closest("[data-update-mod]");
     if (updateMod) updateInstalledMods(updateMod.dataset.updateMod);
+=======
+>>>>>>> 77abf2e (0.5.1)
     const remove = event.target.closest("[data-remove-mod]");
     if (remove) removeMod(remove.dataset.removeMod, remove);
     const playerRow = event.target.closest("[data-select-player]");
@@ -2021,9 +2346,21 @@ function bindEvents() {
     const deleteBackupButton = event.target.closest("[data-delete-backup]");
     if (deleteBackupButton) removeBackup(deleteBackupButton.dataset.deleteBackup, deleteBackupButton);
     const refreshMonitoring = event.target.closest("[data-refresh-monitoring]");
+<<<<<<< HEAD
     if (refreshMonitoring) Promise.all([loadMetrics({ notify: true }), loadPrerequisites({ notify: true })]).then(render);
     const refreshUpdates = event.target.closest("[data-refresh-update]");
     if (refreshUpdates) loadUpdateCheck().then(render);
+=======
+    if (refreshMonitoring) loadMetrics({ notify: true }).then(render);
+    const refreshPrerequisites = event.target.closest("[data-refresh-prerequisites]");
+    if (refreshPrerequisites) loadPrerequisites({ notify: true }).then(render);
+    const refreshUpdates = event.target.closest("[data-refresh-update]");
+    if (refreshUpdates) loadUpdateCheck().then(render);
+    const checkAppUpdateButton = event.target.closest("[data-check-app-update]");
+    if (checkAppUpdateButton) checkAppUpdate();
+    const installAppUpdateButton = event.target.closest("[data-install-app-update]");
+    if (installAppUpdateButton) installAppUpdate();
+>>>>>>> 77abf2e (0.5.1)
     const applyUpdate = event.target.closest("[data-apply-update]");
     if (applyUpdate) applyServerUpdate(applyUpdate);
     const rollbackUpdate = event.target.closest("[data-rollback-update]");
@@ -2052,16 +2389,22 @@ function bindEvents() {
     }
     const worldAction = event.target.closest("[data-world-action]");
     if (worldAction) runWorldAction(worldAction.dataset.worldAction, worldAction.dataset.value, worldAction);
+<<<<<<< HEAD
     const exportButton = event.target.closest("[data-export-logs]");
     if (exportButton) exportLogs(exportButton);
+=======
+>>>>>>> 77abf2e (0.5.1)
   });
 
   $("#page-content").addEventListener("change", (event) => {
     if (event.target.matches("[data-mod-toggle]")) toggleMod(event.target.dataset.modToggle, event.target.checked, event.target);
+<<<<<<< HEAD
     if (event.target.id === "console-level") {
       state.logLevel = event.target.value;
       loadLogs();
     }
+=======
+>>>>>>> 77abf2e (0.5.1)
     if (event.target.id === "event-player-filter") {
       state.eventPlayerFilter = event.target.value.trim();
       loadEvents().then(render);
@@ -2070,8 +2413,12 @@ function bindEvents() {
 
   $("#page-content").addEventListener("submit", (event) => {
     event.preventDefault();
+<<<<<<< HEAD
     if (event.target.id === "instance-location-form") saveGeneralSettings(event.target);
     if (event.target.id === "public-address-form") savePublicAddress(event.target);
+=======
+    if (event.target.id === "app-update-source-form") saveAppUpdateSettings(event.target);
+>>>>>>> 77abf2e (0.5.1)
     if (event.target.id === "properties-form") saveProperties(event.target);
     if (event.target.id === "backup-schedule-form") saveBackupSchedule(event.target);
     if (event.target.id === "console-form") sendCommand(event.target);
@@ -2150,7 +2497,10 @@ async function poll() {
 }
 
 async function init() {
+<<<<<<< HEAD
   applyTheme(document.documentElement.dataset.theme);
+=======
+>>>>>>> 77abf2e (0.5.1)
   bindEvents();
   render();
   await Promise.all([loadHealth(), loadServers()]);
@@ -2159,12 +2509,21 @@ async function init() {
     state.activeView === "players" ? loadPlayers() : Promise.resolve(),
     state.activeView === "activity" ? loadEvents() : Promise.resolve(),
     state.activeView === "backups" ? Promise.all([loadBackups(), loadBackupSchedule()]) : Promise.resolve(),
+<<<<<<< HEAD
     state.activeView === "updates" ? loadUpdateCheck() : Promise.resolve(),
     state.activeView === "monitoring" ? Promise.all([loadMetrics(), loadBackupSchedule(), loadPrerequisites()]) : Promise.resolve(),
     state.activeView === "settings" ? loadProperties() : Promise.resolve(),
     state.activeView === "generalSettings" ? loadGeneralSettings() : Promise.resolve(),
   ]);
   render();
+=======
+    state.activeView === "updates" ? Promise.all([loadUpdateCheck(), loadAppUpdateSettings()]) : Promise.resolve(),
+    state.activeView === "monitoring" ? Promise.all([loadMetrics(), loadBackupSchedule(), loadPrerequisites()]) : Promise.resolve(),
+    state.activeView === "settings" ? loadProperties() : Promise.resolve(),
+  ]);
+  render();
+  if (!state.appUpdateSettingsLoaded) void loadAppUpdateSettings({ notify: true });
+>>>>>>> 77abf2e (0.5.1)
   setInterval(poll, 5_000);
 }
 

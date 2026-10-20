@@ -1,0 +1,15 @@
+[Unit]
+Description=MineHub application updater
+
+[Service]
+Type=oneshot
+User=minehub
+Group=minehub
+Environment=MINEHUB_INSTALL_ROOT=/opt/minehub
+Environment=MINEHUB_UPDATE_DIR=/srv/minecraft/.minehub-update
+Environment=MINEHUB_SYSTEMD_SERVICE=minehub.service
+ExecStart=/usr/bin/node /opt/minehub/self-updater.mjs ${MINEHUB_UPDATE_DIR}/manifest.json
+TimeoutStartSec=180
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/opt/minehub /srv/minecraft
