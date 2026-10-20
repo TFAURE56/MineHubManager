@@ -1,27 +1,14 @@
 import http from "node:http";
 import { createReadStream, existsSync } from "node:fs";
-<<<<<<< HEAD
 import { access, appendFile, cp, mkdir, readFile, readdir, rename, rm, stat, statfs, unlink, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, join, normalize, resolve, sep } from "node:path";
-=======
-import { access, appendFile, cp, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, statfs, unlink, writeFile } from "node:fs/promises";
-import { basename, dirname, extname, isAbsolute, join, normalize, relative, resolve } from "node:path";
->>>>>>> 77abf2e (0.5.1)
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
 import { execFile, spawn } from "node:child_process";
 import { createConnection } from "node:net";
 import crypto from "node:crypto";
-<<<<<<< HEAD
 import os from "node:os";
 import { promisify } from "node:util";
-=======
-import os, { tmpdir } from "node:os";
-import { promisify } from "node:util";
-import { compareVersions, normalizeGitHubRepository } from "./github-updates.mjs";
-import { inspectNodeVersion, parseJavaVersion } from "./runtime-checks.mjs";
-import { verifyAndExtract } from "./self-updater.mjs";
->>>>>>> 77abf2e (0.5.1)
 import {
   PROPERTY_GROUPS,
   PROPERTY_SCHEMA,
@@ -32,21 +19,17 @@ import {
   serializeProperties,
   settingsFromProperties,
 } from "./server-properties.mjs";
-<<<<<<< HEAD
 import { buildPlayerStats } from "./player-stats.mjs";
 import { parseAdvancementMessage, stripSystemChat } from "./console-events.mjs";
 import { normalizePublicAddress } from "./public-address.mjs";
 import { resolveInstanceDirectory } from "./instance-path.mjs";
 import { inspectNodeVersion, parseJavaVersion } from "./runtime-checks.mjs";
-=======
->>>>>>> 77abf2e (0.5.1)
 
 const HOST = process.env.HOST || "127.0.0.1";
 const PORT = Number(process.env.PORT || 4173);
 const ROOT = resolve(process.cwd());
 const PUBLIC_DIR = join(ROOT, "public");
 const DATA_DIR = resolve(process.env.MINECRAFT_ROOT || join(ROOT, "data"));
-<<<<<<< HEAD
 const GENERAL_SETTINGS_FILE = join(DATA_DIR, "general-settings.json");
 let SERVERS_DIR = join(DATA_DIR, "servers");
 const STATE_FILE = join(DATA_DIR, "state.json");
@@ -57,33 +40,18 @@ const MAX_CONSOLE_LOG_BYTES = 10 * 1024 * 1024;
 const API_TOKEN = process.env.MCM_TOKEN || "";
 const USER_AGENT = "MineHubManager/0.10.0 (local Minecraft server manager)";
 const PACKAGE = JSON.parse(await readFile(join(ROOT, "package.json"), "utf8"));
-=======
-const SERVERS_DIR = join(DATA_DIR, "servers");
-const STATE_FILE = join(DATA_DIR, "state.json");
-const APP_UPDATE_SETTINGS_FILE = join(DATA_DIR, "app-update-settings.json");
-const BACKUPS_DIR = resolve(process.env.MINECRAFT_BACKUP_ROOT || join(DATA_DIR, "backups"));
-const METRICS_DIR = join(DATA_DIR, "metrics");
-const API_TOKEN = process.env.MCM_TOKEN || "";
-const USER_AGENT = "MineHubManager/0.5 (local Minecraft server manager)";
-const PACKAGE = JSON.parse(await readFile(join(ROOT, "package.json"), "utf8"));
-const APP_VERSION = PACKAGE.version;
->>>>>>> 77abf2e (0.5.1)
 const MIN_NODE_MAJOR = Number(PACKAGE.engines?.node?.match(/\d+/)?.[0] || 20);
 
 const runtimes = new Map();
 const catalogCache = new Map();
 const execFileAsync = promisify(execFile);
 const backupRuns = new Set();
-<<<<<<< HEAD
 const modUpdateRuns = new Set();
 const playerStatsCache = new Map();
-=======
->>>>>>> 77abf2e (0.5.1)
 const scheduledRuns = new Set();
 const MAX_METRIC_SAMPLES = 1440;
 let cpuSnapshot = null;
 
-<<<<<<< HEAD
 async function inspectJavaRuntime() {
   const configured = process.env.JAVA_PATH || (process.env.JAVA_HOME ? join(process.env.JAVA_HOME, "bin", process.platform === "win32" ? "java.exe" : "java") : "java");
   try {
@@ -96,15 +64,12 @@ async function inspectJavaRuntime() {
   }
 }
 
-=======
->>>>>>> 77abf2e (0.5.1)
 const serverCopyOptions = {
   recursive: true,
   preserveTimestamps: true,
   filter: (source) => basename(source) !== "session.lock",
 };
 
-<<<<<<< HEAD
 try {
   const savedSettings = JSON.parse(await readFile(GENERAL_SETTINGS_FILE, "utf8"));
   if (typeof savedSettings.instanceDirectory === "string" && isAbsolute(savedSettings.instanceDirectory)) {
@@ -114,8 +79,6 @@ try {
   if (error.code !== "ENOENT") console.warn(`Paramètres généraux illisibles: ${error.message}`);
 }
 
-=======
->>>>>>> 77abf2e (0.5.1)
 function isTcpPortInUse(port) {
   return new Promise((resolvePort) => {
     const socket = createConnection({ host: "127.0.0.1", port: Number(port) });
@@ -151,10 +114,7 @@ const mimeTypes = {
 };
 
 await mkdir(SERVERS_DIR, { recursive: true });
-<<<<<<< HEAD
 await mkdir(LOGS_DIR, { recursive: true });
-=======
->>>>>>> 77abf2e (0.5.1)
 
 function defaultState() {
   return { servers: [], createdAt: new Date().toISOString() };
@@ -178,7 +138,6 @@ async function saveState(state) {
   await rename(temporary, STATE_FILE);
 }
 
-<<<<<<< HEAD
 async function saveGeneralSettings(settings) {
   const temporary = `${GENERAL_SETTINGS_FILE}.tmp`;
   await writeFile(temporary, JSON.stringify(settings, null, 2), "utf8");
@@ -229,51 +188,6 @@ async function migrateInstanceDirectory(value, state) {
     if (createdDestination) await rm(destination, { recursive: true, force: true });
     throw error;
   }
-=======
-async function loadAppUpdateSettings() {
-  try {
-    const settings = JSON.parse(await readFile(APP_UPDATE_SETTINGS_FILE, "utf8"));
-    return { repository: normalizeGitHubRepository(settings.repository) };
-  } catch (error) {
-    if (error.code !== "ENOENT") console.warn("Paramètres de mise à jour illisibles:", error.message);
-    return { repository: "" };
-  }
-}
-
-async function saveAppUpdateSettings(settings) {
-  await mkdir(DATA_DIR, { recursive: true });
-  const temporary = `${APP_UPDATE_SETTINGS_FILE}.tmp`;
-  await writeFile(temporary, JSON.stringify(settings, null, 2), "utf8");
-  await rename(temporary, APP_UPDATE_SETTINGS_FILE);
-}
-
-async function checkAppUpdate() {
-  const { repository } = await loadAppUpdateSettings();
-  if (!repository) throw new Error("Configurez d’abord votre dépôt GitHub dans cette page.");
-  let release;
-  try {
-    release = await fetchJson(`https://api.github.com/repos/${repository}/releases/latest`);
-  } catch (error) {
-    if (error.message.includes("(404)")) throw new Error("Dépôt introuvable ou aucune Release publique publiée.");
-    throw error;
-  }
-  const latestVersion = String(release.tag_name || "").replace(/^v/i, "");
-  const updateAvailable = compareVersions(latestVersion, APP_VERSION) > 0;
-  return {
-    currentVersion: APP_VERSION,
-    repository,
-    updateAvailable,
-    latest: {
-      version: latestVersion,
-      name: release.name || release.tag_name,
-      publishedAt: release.published_at,
-      notes: String(release.body || "").slice(0, 12000),
-      url: `https://github.com/${repository}/releases/tag/${encodeURIComponent(release.tag_name)}`,
-      tarballUrl: release.tarball_url,
-      assets: (release.assets || []).map((asset) => ({ name: asset.name, url: asset.browser_download_url, size: asset.size })),
-    },
-  };
->>>>>>> 77abf2e (0.5.1)
 }
 
 function sendJson(res, statusCode, payload) {
@@ -287,7 +201,6 @@ function sendJson(res, statusCode, payload) {
   res.end(JSON.stringify(payload));
 }
 
-<<<<<<< HEAD
 function sendText(res, statusCode, body, headers = {}) {
   res.writeHead(statusCode, {
     "Content-Type": "text/plain; charset=utf-8",
@@ -300,8 +213,6 @@ function sendText(res, statusCode, body, headers = {}) {
   res.end(body);
 }
 
-=======
->>>>>>> 77abf2e (0.5.1)
 function apiError(res, statusCode, message, details) {
   sendJson(res, statusCode, { error: message, ...(details ? { details } : {}) });
 }
@@ -366,36 +277,6 @@ async function fetchJson(url, options = {}) {
   return response.json();
 }
 
-<<<<<<< HEAD
-=======
-async function inspectJavaRuntime() {
-  const candidates = [];
-  if (process.env.JAVA_PATH) candidates.push(process.env.JAVA_PATH.trim().replace(/^"|"$/g, ""));
-  if (process.env.JAVA_HOME) {
-    candidates.push(join(process.env.JAVA_HOME, "bin", process.platform === "win32" ? "java.exe" : "java"));
-    if (process.platform === "win32") candidates.push(join(process.env.JAVA_HOME, "bin", "java"));
-  }
-  candidates.push("java");
-
-  let lastError = null;
-  for (const executable of [...new Set(candidates.filter(Boolean))]) {
-    try {
-      const result = await execFileAsync(executable, ["-version"], { timeout: 5000, windowsHide: true });
-      const parsed = parseJavaVersion(`${result.stdout || ""}\n${result.stderr || ""}`);
-      return { installed: true, executable, version: parsed?.version || "Version inconnue", major: parsed?.major || null };
-    } catch (error) {
-      lastError = error;
-      if (error.stdout || error.stderr) {
-        const parsed = parseJavaVersion(`${error.stdout || ""}\n${error.stderr || ""}`);
-        if (parsed) return { installed: true, executable, ...parsed };
-      }
-    }
-  }
-
-  return { installed: false, executable: null, version: null, major: null, error: lastError?.message || "Java introuvable" };
-}
-
->>>>>>> 77abf2e (0.5.1)
 function cacheGet(key, ttl = 10 * 60_000) {
   const cached = catalogCache.get(key);
   return cached && Date.now() - cached.time < ttl ? cached.value : null;
@@ -563,12 +444,8 @@ function recordEvent(runtime, event) {
 }
 
 function consoleMessage(line) {
-<<<<<<< HEAD
   const message = String(line).match(/\]\s*:\s*(.*)$/)?.[1]?.trim() || String(line).trim();
   return stripSystemChat(message);
-=======
-  return String(line).match(/\]\s*:\s*(.*)$/)?.[1]?.trim() || String(line).trim();
->>>>>>> 77abf2e (0.5.1)
 }
 
 const deathMarkers = [
@@ -605,17 +482,12 @@ function classifyConsoleLine(runtime, clean) {
   match = message.match(/^([A-Za-z0-9_]{1,16}) (?:left the game|lost connection:.*)$/);
   if (match) {
     const name = match[1];
-<<<<<<< HEAD
     const current = runtime.players.get(name);
     const sessionSeconds = current?.joinedAt
       ? Math.max(0, Math.floor((Date.now() - new Date(current.joinedAt).getTime()) / 1000))
       : 0;
     runtime.players.delete(name);
     recordEvent(runtime, { type: "leave", player: name, title: `${name} s’est déconnecté`, detail: message, meta: { sessionSeconds } });
-=======
-    runtime.players.delete(name);
-    recordEvent(runtime, { type: "leave", player: name, title: `${name} s’est déconnecté`, detail: message });
->>>>>>> 77abf2e (0.5.1)
     return;
   }
 
@@ -634,15 +506,9 @@ function classifyConsoleLine(runtime, clean) {
     return;
   }
 
-<<<<<<< HEAD
   const advancement = parseAdvancementMessage(message);
   if (advancement) {
     recordEvent(runtime, { type: "advancement", player: advancement.player, title: `${advancement.player} a obtenu ${advancement.advancement}`, detail: message, meta: { advancement: advancement.advancement } });
-=======
-  match = message.match(/^([A-Za-z0-9_]{1,16}) has (?:made the advancement|completed the challenge|reached the goal) \[(.+)\]$/);
-  if (match) {
-    recordEvent(runtime, { type: "advancement", player: match[1], title: `${match[1]} a obtenu ${match[2]}`, detail: message, meta: { advancement: match[2] } });
->>>>>>> 77abf2e (0.5.1)
     return;
   }
 
@@ -673,7 +539,6 @@ function appendLog(runtime, line, { classify = true } = {}) {
   if (!clean) return;
   runtime.logs.push({ time: stamp, text: clean });
   if (runtime.logs.length > 500) runtime.logs.splice(0, runtime.logs.length - 500);
-<<<<<<< HEAD
   const logPath = join(LOGS_DIR, `${runtime.serverId}.jsonl`);
   const record = `${JSON.stringify({ time: new Date().toISOString(), text: clean })}\n`;
   runtime.logWrite = runtime.logWrite.then(async () => {
@@ -738,11 +603,6 @@ async function exportConsoleLogs(serverId) {
   return lines.join("\n");
 }
 
-=======
-  if (classify) classifyConsoleLine(runtime, clean);
-}
-
->>>>>>> 77abf2e (0.5.1)
 function consumeOutput(runtime, chunk, source) {
   const combined = `${runtime.buffers[source] || ""}${chunk.toString()}`;
   const lines = combined.split(/\r?\n/);
@@ -754,11 +614,7 @@ async function startServer(server) {
   if (runtimes.has(server.id)) throw new Error("Le serveur est deja demarre");
   await assertNoExternalServer(server);
   const java = await inspectJavaRuntime();
-<<<<<<< HEAD
   if (!java.installed) throw new Error(`Java introuvable ou inutilisable (${java.executable}). Installe Java ou configure JAVA_HOME/JAVA_PATH.`);
-=======
-  if (!java.installed) throw new Error("Java est introuvable. Installez Java ou configurez JAVA_HOME/JAVA_PATH avant de démarrer le serveur.");
->>>>>>> 77abf2e (0.5.1)
   const serverDir = join(SERVERS_DIR, server.id);
   await access(join(serverDir, "server.jar"));
   const args = [
@@ -779,11 +635,8 @@ async function startServer(server) {
     status: "starting",
     startedAt: new Date().toISOString(),
     logs: [],
-<<<<<<< HEAD
     logWrite: Promise.resolve(),
     logWriteCount: 0,
-=======
->>>>>>> 77abf2e (0.5.1)
     players: new Map(),
     events: [],
     eventWrite: Promise.resolve(),
@@ -807,7 +660,6 @@ async function startServer(server) {
     for (const source of ["stdout", "stderr"]) {
       if (runtime.buffers[source]) appendLog(runtime, runtime.buffers[source]);
     }
-<<<<<<< HEAD
     for (const player of runtime.players.values()) {
       const sessionSeconds = player.joinedAt ? Math.max(0, Math.floor((Date.now() - new Date(player.joinedAt).getTime()) / 1000)) : 0;
       recordEvent(runtime, {
@@ -825,10 +677,6 @@ async function startServer(server) {
       title: crashed ? `${server.name} s’est arrêté anormalement` : `${server.name} est arrêté`,
       detail: `Code de sortie ${code ?? "inconnu"}`,
     });
-=======
-    appendLog(runtime, `Processus arrete avec le code ${code ?? "inconnu"}`);
-    recordEvent(runtime, { type: "system", title: `${server.name} est arrêté`, detail: `Code de sortie ${code ?? "inconnu"}` });
->>>>>>> 77abf2e (0.5.1)
     runtime.status = "offline";
     runtime.players.clear();
     runtime.process = null;
@@ -880,14 +728,9 @@ async function playerSnapshot(server) {
     readJsonArray(join(serverDir, "banned-players.json")),
   ]);
   const accessLists = { ops, whitelist, banned };
-<<<<<<< HEAD
   if (runtime?.process) sendRuntimeCommand(runtime, "list", { log: false });
   const stats = await playerStatistics(server, accessLists, runtime);
   if (!runtime?.process) return { players: [], online: 0, max: server.settings.maxPlayers, accessLists, playerStats: stats, refreshedAt: new Date().toISOString() };
-=======
-  if (!runtime?.process) return { players: [], online: 0, max: server.settings.maxPlayers, accessLists, refreshedAt: new Date().toISOString() };
-  sendRuntimeCommand(runtime, "list", { log: false });
->>>>>>> 77abf2e (0.5.1)
   const nameSet = (items) => new Set(items.map((item) => String(item.name || "").toLowerCase()));
   const opNames = nameSet(ops);
   const whitelistNames = nameSet(whitelist);
@@ -899,7 +742,6 @@ async function playerSnapshot(server) {
     banned: bannedNames.has(player.name.toLowerCase()),
     sessionSeconds: Math.max(0, Math.floor((Date.now() - new Date(player.joinedAt || Date.now()).getTime()) / 1000)),
   })).sort((a, b) => a.name.localeCompare(b.name));
-<<<<<<< HEAD
   return { players, online: players.length, max: server.settings.maxPlayers, accessLists, playerStats: stats, refreshedAt: new Date().toISOString() };
 }
 
@@ -962,9 +804,6 @@ async function readUuidJsonFiles(directory) {
     }
   }));
   return Object.fromEntries(pairs.filter(Boolean));
-=======
-  return { players, online: players.length, max: server.settings.maxPlayers, accessLists, refreshedAt: new Date().toISOString() };
->>>>>>> 77abf2e (0.5.1)
 }
 
 function offlinePlayerUuid(name) {
@@ -1257,12 +1096,8 @@ async function waitForSave(runtime, timeout = 120_000) {
   throw new Error("Le serveur n’a pas confirmé la sauvegarde du monde à temps.");
 }
 
-<<<<<<< HEAD
 async function createBackup(server, type = "manual", { locked = false, allowModUpdate = false } = {}) {
   if (modUpdateRuns.has(server.id) && !allowModUpdate) throw new Error("Une modification des mods ou plugins est en cours.");
-=======
-async function createBackup(server, type = "manual", { locked = false } = {}) {
->>>>>>> 77abf2e (0.5.1)
   if (backupRuns.has(server.id) && !locked) throw new Error("Une sauvegarde est déjà en cours pour ce serveur.");
   if (!locked) backupRuns.add(server.id);
   const runtime = runtimes.get(server.id);
@@ -1315,10 +1150,7 @@ async function deleteBackup(serverId, backupId) {
 }
 
 async function restoreBackup(server, backupId, { allowVersionChange = false } = {}) {
-<<<<<<< HEAD
   if (modUpdateRuns.has(server.id)) throw new Error("Une modification des mods ou plugins est en cours.");
-=======
->>>>>>> 77abf2e (0.5.1)
   if (backupRuns.has(server.id)) throw new Error("Une opération de sauvegarde est déjà en cours.");
   if (runtimes.get(server.id)?.process) throw new Error("Arrêtez le serveur avant de restaurer une sauvegarde.");
   backupRuns.add(server.id);
@@ -1383,11 +1215,7 @@ async function updateServer(server) {
   await assertNoExternalServer(server);
   if (runtimes.get(server.id)?.process) throw new Error("Arrêtez le serveur avant de le mettre à jour.");
   if (server.installation?.status !== "ready") throw new Error("L'installation du serveur n'est pas terminée.");
-<<<<<<< HEAD
   if (backupRuns.has(server.id) || modUpdateRuns.has(server.id)) throw new Error("Une autre opération sur les fichiers de cette instance est déjà en cours.");
-=======
-  if (backupRuns.has(server.id)) throw new Error("Une opération de sauvegarde est déjà en cours.");
->>>>>>> 77abf2e (0.5.1)
 
   backupRuns.add(server.id);
   const previous = { version: server.version, build: server.build, installation: server.installation, updateRollback: server.updateRollback };
@@ -1612,27 +1440,16 @@ function formatBytes(value) {
   return `${size.toFixed(size >= 100 ? 0 : 1)} ${units[unit]}`;
 }
 
-<<<<<<< HEAD
 async function readAllEvents(serverId) {
   const runtime = runtimes.get(serverId);
   if (runtime?.eventWrite) await runtime.eventWrite;
   try {
     const content = await readFile(eventFile(serverId), "utf8");
     return content.split(/\r?\n/).filter(Boolean).slice(-10000).map((line) => {
-=======
-async function readEvents(serverId, searchParams) {
-  const runtime = runtimes.get(serverId);
-  if (runtime?.eventWrite) await runtime.eventWrite;
-  let events = [];
-  try {
-    const content = await readFile(eventFile(serverId), "utf8");
-    events = content.split(/\r?\n/).filter(Boolean).slice(-10000).map((line) => {
->>>>>>> 77abf2e (0.5.1)
       try { return JSON.parse(line); } catch { return null; }
     }).filter(Boolean);
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
-<<<<<<< HEAD
     return [];
   }
 }
@@ -1640,10 +1457,6 @@ async function readEvents(serverId, searchParams) {
 async function readEvents(serverId, searchParams) {
   const allEvents = await readAllEvents(serverId);
   let events = allEvents;
-=======
-  }
-  const allEvents = events;
->>>>>>> 77abf2e (0.5.1)
   const type = String(searchParams.get("type") || "all");
   const player = String(searchParams.get("player") || "").toLowerCase();
   if (type !== "all") events = events.filter((event) => event.type === type);
@@ -1731,7 +1544,6 @@ async function installMod(server, projectId) {
   return mod;
 }
 
-<<<<<<< HEAD
 function modFolder(server) {
   return join(SERVERS_DIR, server.id, server.type === "paper" ? "plugins" : "mods");
 }
@@ -1830,8 +1642,6 @@ async function updateInstalledMod(server, mod, version) {
   return mod;
 }
 
-=======
->>>>>>> 77abf2e (0.5.1)
 async function toggleMod(server, modId, enabled) {
   const mod = (server.mods || []).find((item) => item.id === modId);
   if (!mod) throw new Error("Mod introuvable");
@@ -1864,11 +1674,7 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, {
       ok: true,
       name: "MineHub Agent",
-<<<<<<< HEAD
       version: "0.10.0",
-=======
-      version: APP_VERSION,
->>>>>>> 77abf2e (0.5.1)
       host: HOST,
       node: process.version,
       root: DATA_DIR,
@@ -1878,129 +1684,13 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/prerequisites") {
-<<<<<<< HEAD
     return sendJson(res, 200, {
       node: { ...inspectNodeVersion(process.version, MIN_NODE_MAJOR), executable: process.execPath },
       java: await inspectJavaRuntime(),
-=======
-    const node = inspectNodeVersion(process.version, MIN_NODE_MAJOR);
-    node.executable = process.execPath;
-    const java = await inspectJavaRuntime();
-    return sendJson(res, 200, {
-      platform: process.platform,
-      node,
-      java,
->>>>>>> 77abf2e (0.5.1)
       checkedAt: new Date().toISOString(),
     });
   }
 
-<<<<<<< HEAD
-=======
-  if (req.method === "GET" && url.pathname === "/api/app-updates/settings") {
-    return sendJson(res, 200, { currentVersion: APP_VERSION, ...(await loadAppUpdateSettings()) });
-  }
-
-  if (req.method === "PATCH" && url.pathname === "/api/app-updates/settings") {
-    const body = await readBody(req);
-    try {
-      const repository = String(body.repository || "").trim() ? normalizeGitHubRepository(body.repository) : "";
-      await saveAppUpdateSettings({ repository });
-      return sendJson(res, 200, { currentVersion: APP_VERSION, repository });
-    } catch (error) {
-      return apiError(res, 400, error.message);
-    }
-  }
-
-  if (req.method === "GET" && url.pathname === "/api/app-updates/check") {
-    try {
-      return sendJson(res, 200, await checkAppUpdate());
-    } catch (error) {
-      return apiError(res, 502, error.message);
-    }
-  }
-
-  if (req.method === "POST" && url.pathname === "/api/app-updates/install") {
-    if (runtimes.size) return apiError(res, 409, "Arretez tous les serveurs Minecraft geres avant de mettre MineHub a jour.");
-    const isSystemd = Boolean(process.env.INVOCATION_ID);
-    const systemdUnit = isSystemd ? process.env.MINEHUB_SYSTEMD_SERVICE : "";
-    const updaterService = isSystemd ? (process.env.MINEHUB_SYSTEMD_UPDATER || "minehub-updater.service") : "";
-    if (isSystemd && !systemdUnit) {
-      return apiError(res, 409, "Configurez MINEHUB_SYSTEMD_SERVICE et l'unite minehub-updater.service avant la mise a jour automatique.");
-    }
-    if (isSystemd && (![systemdUnit, updaterService].every((unit) => /^[A-Za-z0-9_.@:-]+\.service$/.test(unit)))) {
-      return apiError(res, 400, "Nom d'unite systemd invalide.");
-    }
-    let workDir;
-    try {
-      const update = await checkAppUpdate();
-      if (!update.updateAvailable) return apiError(res, 409, "Aucune nouvelle version stable n'est disponible.");
-      const archiveUrl = new URL(update.latest.tarballUrl);
-      if (archiveUrl.protocol !== "https:" || !["api.github.com", "github.com"].includes(archiveUrl.hostname)) {
-        return apiError(res, 502, "L'archive de mise a jour ne provient pas de GitHub.");
-      }
-      const response = await fetch(archiveUrl, {
-        headers: { "User-Agent": USER_AGENT, Accept: "application/vnd.github+json" },
-        signal: AbortSignal.timeout(120_000),
-      });
-      if (!response.ok) throw new Error(`Telechargement GitHub impossible (${response.status}).`);
-      const declaredSize = Number(response.headers.get("content-length") || 0);
-      if (declaredSize > 200 * 1024 * 1024) throw new Error("Archive trop volumineuse (maximum 200 Mo).");
-      const archive = Buffer.from(await response.arrayBuffer());
-      if (!archive.length || archive.length > 200 * 1024 * 1024) throw new Error("Taille d'archive invalide (maximum 200 Mo).");
-
-      if (isSystemd) {
-        workDir = resolve(process.env.MINEHUB_UPDATE_DIR || join(DATA_DIR, ".minehub-update"));
-        const updateRelative = relative(DATA_DIR, workDir);
-        if (!updateRelative || updateRelative.startsWith("..") || isAbsolute(updateRelative)) {
-          throw new Error("MINEHUB_UPDATE_DIR doit etre un sous-dossier du dossier de donnees.");
-        }
-        await rm(workDir, { recursive: true, force: true });
-        await mkdir(workDir, { recursive: true });
-      } else workDir = await mkdtemp(join(tmpdir(), "minehub-update-"));
-      const archivePath = join(workDir, "release.tar.gz");
-      await writeFile(archivePath, archive, { mode: 0o600 });
-      await verifyAndExtract(archivePath, workDir, update.latest.version);
-      const manifestPath = join(workDir, "manifest.json");
-      await writeFile(manifestPath, JSON.stringify({
-        root: ROOT,
-        archive: archivePath,
-        parentPid: process.pid,
-        version: update.latest.version,
-        previousVersion: APP_VERSION,
-        node: process.execPath,
-        env: process.env,
-        systemdUnit: systemdUnit || null,
-      }), { mode: 0o600 });
-      if (isSystemd) {
-        const command = process.getuid?.() === 0 ? "systemctl" : "sudo";
-        const args = command === "sudo"
-          ? ["-n", "systemctl", "--no-block", "start", updaterService]
-          : ["--no-block", "start", updaterService];
-        await execFileAsync(command, args, { timeout: 10_000, windowsHide: true });
-      } else {
-        const updater = spawn(process.execPath, [join(ROOT, "self-updater.mjs"), manifestPath], {
-          cwd: ROOT,
-          detached: true,
-          stdio: "ignore",
-          windowsHide: true,
-        });
-        await new Promise((resolveSpawn, rejectSpawn) => {
-          updater.once("spawn", resolveSpawn);
-          updater.once("error", rejectSpawn);
-        });
-        updater.unref();
-      }
-      sendJson(res, 202, { accepted: true, version: update.latest.version, restartRequired: true });
-      const shutdownTimer = setTimeout(shutdown, 900).unref();
-      return;
-    } catch (error) {
-      if (workDir) await rm(workDir, { recursive: true, force: true }).catch(() => {});
-      return apiError(res, 502, error.message || "Mise a jour impossible.");
-    }
-  }
-
->>>>>>> 77abf2e (0.5.1)
   if (req.method === "GET" && url.pathname === "/api/versions") {
     const type = ["paper", "fabric", "vanilla"].includes(url.searchParams.get("type")) ? url.searchParams.get("type") : "paper";
     const versions = await getVersions(type);
@@ -2011,7 +1701,6 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { groups: PROPERTY_GROUPS, properties: PROPERTY_SCHEMA });
   }
 
-<<<<<<< HEAD
   if (req.method === "GET" && url.pathname === "/api/general-settings") {
     return sendJson(res, 200, {
       instanceDirectory: SERVERS_DIR,
@@ -2034,8 +1723,6 @@ async function handleApi(req, res, url) {
     }
   }
 
-=======
->>>>>>> 77abf2e (0.5.1)
   if (req.method === "GET" && url.pathname === "/api/servers") {
     const state = await loadState();
     const servers = await Promise.all(state.servers.map(async (item) => {
@@ -2114,22 +1801,14 @@ async function handleApi(req, res, url) {
 
   if (req.method === "POST" && resource === "backups") {
     if (server.installation?.status !== "ready") return apiError(res, 409, "Attendez la fin de l’installation avant de sauvegarder.");
-<<<<<<< HEAD
     if (backupRuns.has(serverId) || modUpdateRuns.has(serverId)) return apiError(res, 409, "Une opération sur les fichiers de cette instance est déjà en cours.");
-=======
-    if (backupRuns.has(serverId)) return apiError(res, 409, "Une opération de sauvegarde est déjà en cours.");
->>>>>>> 77abf2e (0.5.1)
     const backup = await createBackup(server, "manual");
     return sendJson(res, 201, { backup });
   }
 
   const backupActionMatch = resource.match(/^backups\/([A-Za-z0-9-]+)\/(restore)$/);
   if (req.method === "POST" && backupActionMatch) {
-<<<<<<< HEAD
     if (backupRuns.has(serverId) || modUpdateRuns.has(serverId)) return apiError(res, 409, "Une opération sur les fichiers de cette instance est déjà en cours.");
-=======
-    if (backupRuns.has(serverId)) return apiError(res, 409, "Une opération de sauvegarde est déjà en cours.");
->>>>>>> 77abf2e (0.5.1)
     if (runtimes.get(serverId)?.process) return apiError(res, 409, "Arrêtez le serveur avant de restaurer une sauvegarde.");
     const result = await restoreBackup(server, backupActionMatch[1]);
     return sendJson(res, 200, result);
@@ -2137,11 +1816,7 @@ async function handleApi(req, res, url) {
 
   const backupMatch = resource.match(/^backups\/([A-Za-z0-9-]+)$/);
   if (req.method === "DELETE" && backupMatch) {
-<<<<<<< HEAD
     if (backupRuns.has(serverId) || modUpdateRuns.has(serverId)) return apiError(res, 409, "Attendez la fin de l’opération en cours.");
-=======
-    if (backupRuns.has(serverId)) return apiError(res, 409, "Attendez la fin de l’opération de sauvegarde.");
->>>>>>> 77abf2e (0.5.1)
     await deleteBackup(serverId, backupMatch[1]);
     if (server.updateRollback === backupMatch[1]) {
       server.updateRollback = null;
@@ -2170,7 +1845,6 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { current, history, sampledEverySeconds: 60, historyHours: 24 });
   }
 
-<<<<<<< HEAD
   if (req.method === "PATCH" && resource === "access") {
     const body = await readBody(req);
     try {
@@ -2184,8 +1858,6 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { server: runtimeView(server) });
   }
 
-=======
->>>>>>> 77abf2e (0.5.1)
   if (req.method === "PATCH" && resource === "settings") {
     const body = await readBody(req);
     server.settings = normalizeSettings(body.settings, server.settings);
@@ -2224,11 +1896,7 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "POST" && resource === "action") {
-<<<<<<< HEAD
     if (backupRuns.has(serverId) || modUpdateRuns.has(serverId)) return apiError(res, 409, "Attendez la fin de l’opération sur les fichiers.");
-=======
-    if (backupRuns.has(serverId)) return apiError(res, 409, "Attendez la fin de l’opération de sauvegarde.");
->>>>>>> 77abf2e (0.5.1)
     const body = await readBody(req);
     if (body.action === "start") await startServer(server);
     else if (body.action === "stop") await stopServer(serverId);
@@ -2240,7 +1908,6 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && resource === "logs") {
-<<<<<<< HEAD
     const runtime = runtimes.get(serverId);
     if (runtime) await runtime.logWrite;
     const search = String(url.searchParams.get("search") || "").slice(0, 200);
@@ -2254,9 +1921,6 @@ async function handleApi(req, res, url) {
     if (runtime) await runtime.logWrite;
     const content = await exportConsoleLogs(serverId);
     return sendText(res, 200, content, { "Content-Disposition": `attachment; filename="${serverId}-console.log"` });
-=======
-    return sendJson(res, 200, { logs: runtimes.get(serverId)?.logs || [] });
->>>>>>> 77abf2e (0.5.1)
   }
 
   if (req.method === "GET" && resource === "players") {
@@ -2299,7 +1963,6 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { mods: server.mods || [] });
   }
 
-<<<<<<< HEAD
   if (req.method === "GET" && resource === "mods/updates") {
     return sendJson(res, 200, { updates: await checkModUpdates(server) });
   }
@@ -2356,20 +2019,10 @@ async function handleApi(req, res, url) {
     } finally {
       modUpdateRuns.delete(serverId);
     }
-=======
-  if (req.method === "POST" && resource === "mods") {
-    const body = await readBody(req);
-    const mod = await installMod(server, String(body.projectId || ""));
-    server.updatedAt = new Date().toISOString();
-    await writeServerConfig(server);
-    await saveState(state);
-    return sendJson(res, 201, { mod, mods: server.mods });
->>>>>>> 77abf2e (0.5.1)
   }
 
   const modMatch = resource.match(/^mods\/([A-Za-z0-9_-]+)$/);
   if (modMatch && req.method === "PATCH") {
-<<<<<<< HEAD
     await lockModsForChange(server);
     try {
       const body = await readBody(req);
@@ -2392,20 +2045,6 @@ async function handleApi(req, res, url) {
     } finally {
       modUpdateRuns.delete(serverId);
     }
-=======
-    const body = await readBody(req);
-    const mod = await toggleMod(server, modMatch[1], Boolean(body.enabled));
-    await writeServerConfig(server);
-    await saveState(state);
-    return sendJson(res, 200, { mod, mods: server.mods });
-  }
-
-  if (modMatch && req.method === "DELETE") {
-    await removeMod(server, modMatch[1]);
-    await writeServerConfig(server);
-    await saveState(state);
-    return sendJson(res, 200, { ok: true, mods: server.mods });
->>>>>>> 77abf2e (0.5.1)
   }
 
   return apiError(res, 404, "Operation introuvable");
